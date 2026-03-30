@@ -1,0 +1,724 @@
+{
+  "orders": [
+    {
+      "clubSlug": "test",
+      "buyer": {
+        "name": "fa",
+        "email": "fa",
+        "phone": "fa"
+      },
+      "items": [
+        {
+          "cartId": 1769606182398.209,
+          "productId": "p1",
+          "type": "MERCH",
+          "name": "Traditional Gi - Heavyweight",
+          "brand": "Tokaido",
+          "price": 189,
+          "category": "Gi",
+          "leisureGrantEligible": false,
+          "durationWeeks": null
+        },
+        {
+          "cartId": 1769606183360.08,
+          "productId": "p5",
+          "type": "MERCH",
+          "name": "Shin Guards - Competition",
+          "brand": "Arawaza",
+          "price": 59,
+          "category": "Protection",
+          "leisureGrantEligible": false,
+          "durationWeeks": null
+        }
+      ],
+      "registrations": [],
+      "fristundastyrkur": {
+        "requested": false,
+        "municipality": "",
+        "eligibleSubtotal": 0,
+        "appliedAmount": 0,
+        "note": "",
+        "status": "EKKI_OSKAD",
+        "policy": {
+          "minWeeks": 8,
+          "ageRule": "YEAR_BASED_6_TO_18",
+          "currentYear": 2026,
+          "requiresParticipantLoginWhen18": true
+        },
+        "eid": {
+          "verified": false,
+          "loginAs": ""
+        }
+      },
+      "totals": {
+        "subtotal": 248,
+        "fee": 0,
+        "fristundastyrkurDiscount": 0,
+        "total": 248
+      },
+      "payment": {
+        "status": "DEMO_NOT_PAID",
+        "provider": "demo"
+      },
+      "id": "ord_1769606191478",
+      "createdAt": "2026-01-28T13:16:31.479Z",
+      "status": "DEMO_NOT_PAID"
+    },
+    {
+      "clubSlug": "test",
+      "buyer": {
+        "name": "fa",
+        "email": "sf",
+        "phone": "fs"
+      },
+      "items": [
+        {
+          "cartId": 1769092540680.0881,
+          "productId": "p1",
+          "type": "MERCH",
+          "name": "Traditional Gi - Heavyweight",
+          "brand": "Tokaido",
+          "price": 189,
+          "category": "Gi",
+          "leisureGrantEligible": false,
+          "durationWeeks": null
+        }
+      ],
+      "registrations": [],
+      "fristundastyrkur": {
+        "requested": false,
+        "municipality": "",
+        "eligibleSubtotal": 0,
+        "appliedAmount": 0,
+        "note": "",
+        "status": "EKKI_OSKAD",
+        "policy": {
+          "minWeeks": 8,
+          "ageRule": "YEAR_BASED_6_TO_18",
+          "currentYear": 2026,
+          "requiresParticipantLoginWhen18": true
+        },
+        "eid": {
+          "verified": false,
+          "loginAs": ""
+        }
+      },
+      "totals": {
+        "subtotal": 189,
+        "fee": 0,
+        "fristundastyrkurDiscount": 0,
+        "total": 189
+      },
+      "payment": {
+        "status": "DEMO_NOT_PAID"
+      },
+      "id": "ord_1769092546343_35cb21fc4550e8",
+      "createdAt": "2026-01-22T14:35:46.343Z",
+      "status": "PENDING"
+    },
+    {
+      "clubSlug": "test",
+      "buyer": {
+        "name": "afd",
+        "email": "sdf",
+        "phone": "sdf"
+      },
+      "items": [
+        {
+          "cartId": 1769091784595.4333,
+          "productId": "p1",
+          "type": "MERCH",
+          "name": "Traditional Gi - Heavyweight",
+          "brand": "Tokaido",
+          "price": 189,
+          "category": "Gi",
+          "leisureGrantEligible": false,
+          "durationWeeks": null
+        }
+      ],
+      "registrations": [],
+      "fristundastyrkur": {
+        "requested": false,
+        "municipality": "",
+        "eligibleSubtotal": 0,
+        "appliedAmount": 0,
+        "note": "",
+        "status": "EKKI_OSKAD",
+        "policy": {
+          "minWeeks": 8,
+          "ageRule": "YEAR_BASED_6_TO_18",
+          "currentYear": 2026,
+          "requiresParticipantLoginWhen18": true
+        },
+        "eid": {
+          "verified": false,
+          "loginAs": ""
+        }
+      },
+      "totals": {
+        "subtotal": 189,
+        "fee": 0,
+        "fristundastyrkurDiscount": 0,
+        "total": 189
+      },
+      "payment": {
+        "status": "DEMO_NOT_PAID"
+      },
+      "id": "ord_1769091792342_79ec9230a91a58",
+      "createdAt": "2026-01-22T14:23:12.342Z",
+      "status": "PENDING"
+    },
+    {
+      "clubSlug": "test",
+      "buyer": {
+        "name": "fa",
+        "email": "fs",
+        "phone": "d"
+      },
+      "items": [
+        {
+          "cartId": 1769091733940.875,
+          "productId": "p1",
+          "type": "MERCH",
+          "name": "Traditional Gi - Heavyweight",
+          "brand": "Tokaido",
+          "price": 189,
+          "category": "Gi",
+          "leisureGrantEligible": false,
+          "durationWeeks": null
+        }
+      ],
+      "registrations": [],
+      "fristundastyrkur": {
+        "requested": false,
+        "municipality": "",
+        "eligibleSubtotal": 0,
+        "appliedAmount": 0,
+        "note": "",
+        "status": "EKKI_OSKAD",
+        "policy": {
+          "minWeeks": 8,
+          "ageRule": "YEAR_BASED_6_TO_18",
+          "currentYear": 2026,
+          "requiresParticipantLoginWhen18": true
+        },
+        "eid": {
+          "verified": false,
+          "loginAs": ""
+        }
+      },
+      "totals": {
+        "subtotal": 189,
+        "fee": 0,
+        "fristundastyrkurDiscount": 0,
+        "total": 189
+      },
+      "payment": {
+        "status": "DEMO_NOT_PAID"
+      },
+      "id": "ord_1769091740811_b2057e50742b08",
+      "createdAt": "2026-01-22T14:22:20.811Z",
+      "status": "PENDING"
+    },
+    {
+      "clubSlug": "test",
+      "buyer": {
+        "name": "fa",
+        "email": "sdf",
+        "phone": "fds"
+      },
+      "items": [
+        {
+          "cartId": 1769091660162.0847,
+          "productId": "p2",
+          "type": "MERCH",
+          "name": "Competition Gi - Lightweight",
+          "brand": "Shureido",
+          "price": 159,
+          "category": "Gi",
+          "leisureGrantEligible": false,
+          "durationWeeks": null
+        }
+      ],
+      "registrations": [],
+      "fristundastyrkur": {
+        "requested": false,
+        "municipality": "",
+        "eligibleSubtotal": 0,
+        "appliedAmount": 0,
+        "note": "",
+        "status": "EKKI_OSKAD",
+        "policy": {
+          "minWeeks": 8,
+          "ageRule": "YEAR_BASED_6_TO_18",
+          "currentYear": 2026,
+          "requiresParticipantLoginWhen18": true
+        },
+        "eid": {
+          "verified": false,
+          "loginAs": ""
+        }
+      },
+      "totals": {
+        "subtotal": 159,
+        "fee": 0,
+        "fristundastyrkurDiscount": 0,
+        "total": 159
+      },
+      "payment": {
+        "status": "DEMO_NOT_PAID"
+      },
+      "id": "ord_1769091665090_d3bd51bebd61e",
+      "createdAt": "2026-01-22T14:21:05.090Z",
+      "status": "PENDING"
+    },
+    {
+      "clubSlug": "test",
+      "buyer": {
+        "name": "fa",
+        "email": "sd",
+        "phone": "fa"
+      },
+      "items": [
+        {
+          "cartId": 1769091189989.7366,
+          "productId": "p2",
+          "type": "MERCH",
+          "name": "Competition Gi - Lightweight",
+          "brand": "Shureido",
+          "price": 159,
+          "category": "Gi",
+          "leisureGrantEligible": false,
+          "durationWeeks": null
+        }
+      ],
+      "registrations": [],
+      "fristundastyrkur": {
+        "requested": false,
+        "municipality": "",
+        "eligibleSubtotal": 0,
+        "appliedAmount": 0,
+        "note": "",
+        "status": "EKKI_OSKAD",
+        "policy": {
+          "minWeeks": 8,
+          "ageRule": "YEAR_BASED_6_TO_18",
+          "currentYear": 2026,
+          "requiresParticipantLoginWhen18": true
+        },
+        "eid": {
+          "verified": false,
+          "loginAs": ""
+        }
+      },
+      "totals": {
+        "subtotal": 159,
+        "fee": 0,
+        "fristundastyrkurDiscount": 0,
+        "total": 159
+      },
+      "payment": {
+        "status": "DEMO_NOT_PAID"
+      },
+      "id": "ord_1769091195755_9751bb3d1e75d",
+      "createdAt": "2026-01-22T14:13:15.755Z",
+      "status": "PENDING"
+    },
+    {
+      "clubSlug": "test",
+      "buyer": {
+        "name": "fa",
+        "email": "fds",
+        "phone": "ds"
+      },
+      "items": [
+        {
+          "cartId": 1769080137243.0159,
+          "productId": "t-summer-camp-2026",
+          "type": "REGISTRATION",
+          "name": "Summer training camp (2026)",
+          "brand": "Training",
+          "price": 180,
+          "category": "Training",
+          "leisureGrantEligible": true,
+          "durationWeeks": 8
+        }
+      ],
+      "registrations": [
+        {
+          "cartId": 1769080137243.0159,
+          "productId": "t-summer-camp-2026",
+          "productName": "Summer training camp (2026)",
+          "athleteDob": "2009-02-22",
+          "athleteName": "fad",
+          "guardianName": "f",
+          "notes": "sa"
+        }
+      ],
+      "fristundastyrkur": {
+        "requested": true,
+        "municipality": "Reykjavík",
+        "eligibleSubtotal": 180,
+        "appliedAmount": 180,
+        "note": "fdsa",
+        "status": "STADFEST_MED_RAFRAENUM_SKILRIKJUM_DEMO",
+        "policy": {
+          "minWeeks": 8,
+          "ageRule": "YEAR_BASED_6_TO_18",
+          "currentYear": 2026,
+          "requiresParticipantLoginWhen18": true
+        },
+        "eid": {
+          "verified": true,
+          "loginAs": "GUARDIAN"
+        }
+      },
+      "totals": {
+        "subtotal": 180,
+        "fee": 0,
+        "fristundastyrkurDiscount": 180,
+        "total": 0
+      },
+      "payment": {
+        "status": "PAID"
+      },
+      "id": "ord_1769080203881_7fd22b9fd05ed",
+      "createdAt": "2026-01-22T11:10:03.881Z",
+      "status": "PAID"
+    },
+    {
+      "clubSlug": "test",
+      "buyer": {
+        "name": "fd",
+        "email": "fa",
+        "phone": "s"
+      },
+      "items": [
+        {
+          "cartId": 1769079970661.5815,
+          "productId": "p2",
+          "type": "MERCH",
+          "name": "Competition Gi - Lightweight",
+          "brand": "Shureido",
+          "price": 159,
+          "category": "Gi",
+          "leisureGrantEligible": false,
+          "durationWeeks": null
+        }
+      ],
+      "registrations": [],
+      "fristundastyrkur": {
+        "requested": false,
+        "municipality": "",
+        "eligibleSubtotal": 0,
+        "appliedAmount": 0,
+        "note": "",
+        "status": "EKKI_OSKAD",
+        "policy": {
+          "minWeeks": 8,
+          "ageRule": "YEAR_BASED_6_TO_18",
+          "currentYear": 2026,
+          "requiresParticipantLoginWhen18": true
+        },
+        "eid": {
+          "verified": false,
+          "loginAs": ""
+        }
+      },
+      "totals": {
+        "subtotal": 159,
+        "fee": 0,
+        "fristundastyrkurDiscount": 0,
+        "total": 159
+      },
+      "payment": {
+        "status": "DEMO_NOT_PAID"
+      },
+      "id": "ord_1769079976339_760caebbc1cbb",
+      "createdAt": "2026-01-22T11:06:16.339Z",
+      "status": "PENDING"
+    },
+    {
+      "clubSlug": "test",
+      "buyer": {
+        "name": "fa",
+        "email": "fds",
+        "phone": "fds"
+      },
+      "items": [
+        {
+          "cartId": 1769079867338.7678,
+          "productId": "p2",
+          "type": "MERCH",
+          "name": "Competition Gi - Lightweight",
+          "brand": "Shureido",
+          "price": 159,
+          "category": "Gi",
+          "leisureGrantEligible": false,
+          "durationWeeks": null
+        }
+      ],
+      "registrations": [],
+      "fristundastyrkur": {
+        "requested": false,
+        "municipality": "",
+        "eligibleSubtotal": 0,
+        "appliedAmount": 0,
+        "note": "",
+        "status": "EKKI_OSKAD",
+        "policy": {
+          "minWeeks": 8,
+          "ageRule": "YEAR_BASED_6_TO_18",
+          "currentYear": 2026,
+          "requiresParticipantLoginWhen18": true
+        },
+        "eid": {
+          "verified": false,
+          "loginAs": ""
+        }
+      },
+      "totals": {
+        "subtotal": 159,
+        "fee": 0,
+        "fristundastyrkurDiscount": 0,
+        "total": 159
+      },
+      "payment": {
+        "status": "DEMO_NOT_PAID"
+      },
+      "id": "ord_1769079873678_c636f24fe54498",
+      "createdAt": "2026-01-22T11:04:33.678Z",
+      "status": "PENDING"
+    },
+    {
+      "buyer": {
+        "name": "fa",
+        "email": "saf",
+        "phone": "fds"
+      },
+      "items": [
+        {
+          "cartId": 1769079180482.706,
+          "productId": "p2",
+          "type": "MERCH",
+          "name": "Competition Gi - Lightweight",
+          "brand": "Shureido",
+          "price": 159,
+          "category": "Gi",
+          "leisureGrantEligible": false,
+          "durationWeeks": null
+        }
+      ],
+      "registrations": [],
+      "fristundastyrkur": {
+        "requested": false,
+        "municipality": "",
+        "eligibleSubtotal": 0,
+        "appliedAmount": 0,
+        "note": "",
+        "status": "EKKI_OSKAD",
+        "policy": {
+          "minWeeks": 8,
+          "ageRule": "YEAR_BASED_6_TO_18",
+          "currentYear": 2026,
+          "requiresParticipantLoginWhen18": true
+        },
+        "eid": {
+          "verified": false,
+          "loginAs": ""
+        }
+      },
+      "totals": {
+        "subtotal": 159,
+        "fee": 0,
+        "fristundastyrkurDiscount": 0,
+        "total": 159
+      },
+      "payment": {
+        "status": "DEMO_NOT_PAID"
+      },
+      "id": "ord_1769079187048_eddaacebc58278",
+      "clubSlug": "test",
+      "createdAt": "2026-01-22T10:53:07.048Z",
+      "status": "PENDING"
+    },
+    {
+      "buyer": {
+        "name": "fa",
+        "email": "afds",
+        "phone": "ds"
+      },
+      "items": [
+        {
+          "cartId": 1769078290867.8618,
+          "productId": "p2",
+          "type": "MERCH",
+          "name": "Competition Gi - Lightweight",
+          "brand": "Shureido",
+          "price": 159,
+          "category": "Gi",
+          "leisureGrantEligible": false,
+          "durationWeeks": null
+        },
+        {
+          "cartId": 1769078291572.415,
+          "productId": "p1",
+          "type": "MERCH",
+          "name": "Traditional Gi - Heavyweight",
+          "brand": "Tokaido",
+          "price": 189,
+          "category": "Gi",
+          "leisureGrantEligible": false,
+          "durationWeeks": null
+        },
+        {
+          "cartId": 1769078293130.3752,
+          "productId": "p5",
+          "type": "MERCH",
+          "name": "Shin Guards - Competition",
+          "brand": "Arawaza",
+          "price": 59,
+          "category": "Protection",
+          "leisureGrantEligible": false,
+          "durationWeeks": null
+        }
+      ],
+      "registrations": [],
+      "fristundastyrkur": {
+        "requested": false,
+        "municipality": "",
+        "eligibleSubtotal": 0,
+        "appliedAmount": 0,
+        "note": "",
+        "status": "EKKI_OSKAD",
+        "policy": {
+          "minWeeks": 8,
+          "ageRule": "YEAR_BASED_6_TO_18",
+          "currentYear": 2026,
+          "requiresParticipantLoginWhen18": true
+        },
+        "eid": {
+          "verified": false,
+          "loginAs": ""
+        }
+      },
+      "totals": {
+        "subtotal": 407,
+        "fee": 0,
+        "fristundastyrkurDiscount": 0,
+        "total": 407
+      },
+      "payment": {
+        "status": "DEMO_NOT_PAID"
+      },
+      "id": "ord_1769078302415_a2e831618585d8",
+      "clubSlug": "test",
+      "createdAt": "2026-01-22T10:38:22.415Z",
+      "status": "PENDING"
+    },
+    {
+      "buyer": {
+        "name": "fa",
+        "email": "s",
+        "phone": "ds"
+      },
+      "items": [
+        {
+          "cartId": 1769078086284.2776,
+          "productId": "p3",
+          "type": "MERCH",
+          "name": "Obi Belt - Black",
+          "brand": "Tokaido",
+          "price": 29,
+          "category": "Belts",
+          "leisureGrantEligible": false,
+          "durationWeeks": null
+        }
+      ],
+      "registrations": [],
+      "fristundastyrkur": {
+        "requested": false,
+        "municipality": "",
+        "eligibleSubtotal": 0,
+        "appliedAmount": 0,
+        "note": "",
+        "status": "EKKI_OSKAD",
+        "policy": {
+          "minWeeks": 8,
+          "ageRule": "YEAR_BASED_6_TO_18",
+          "currentYear": 2026,
+          "requiresParticipantLoginWhen18": true
+        },
+        "eid": {
+          "verified": false,
+          "loginAs": ""
+        }
+      },
+      "totals": {
+        "subtotal": 29,
+        "fee": 0,
+        "fristundastyrkurDiscount": 0,
+        "total": 29
+      },
+      "payment": {
+        "status": "DEMO_NOT_PAID"
+      },
+      "id": "ord_1769078094777_4acfd194d13e18",
+      "clubSlug": "test",
+      "createdAt": "2026-01-22T10:34:54.777Z",
+      "status": "PENDING"
+    },
+    {
+      "buyer": {
+        "name": "fa",
+        "email": "sa",
+        "phone": "fd"
+      },
+      "items": [
+        {
+          "cartId": 1769078059720.1665,
+          "productId": "p1",
+          "type": "MERCH",
+          "name": "Traditional Gi - Heavyweight",
+          "brand": "Tokaido",
+          "price": 189,
+          "category": "Gi",
+          "leisureGrantEligible": false,
+          "durationWeeks": null
+        }
+      ],
+      "registrations": [],
+      "fristundastyrkur": {
+        "requested": false,
+        "municipality": "",
+        "eligibleSubtotal": 0,
+        "appliedAmount": 0,
+        "note": "",
+        "status": "EKKI_OSKAD",
+        "policy": {
+          "minWeeks": 8,
+          "ageRule": "YEAR_BASED_6_TO_18",
+          "currentYear": 2026,
+          "requiresParticipantLoginWhen18": true
+        },
+        "eid": {
+          "verified": false,
+          "loginAs": ""
+        }
+      },
+      "totals": {
+        "subtotal": 189,
+        "fee": 0,
+        "fristundastyrkurDiscount": 0,
+        "total": 189
+      },
+      "payment": {
+        "status": "DEMO_NOT_PAID"
+      },
+      "id": "ord_1769078066576_58e52b1e678918",
+      "clubSlug": "test",
+      "createdAt": "2026-01-22T10:34:26.576Z",
+      "status": "PENDING"
+    }
+  ]
+}

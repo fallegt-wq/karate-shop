@@ -1,0 +1,24 @@
+/* src/index.css */
+
+/* Club theme vars (fallback) */
+:root {
+  --club-primary: #111827;
+  --club-secondary: #374151;
+  --club-accent: #2563eb;
+  --club-bg: #ffffff;
+  --club-fg: #111827;
+
+  --club-logo-url: none;
+  --club-hero-url: none;
+  --club-name: "Dojo";
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

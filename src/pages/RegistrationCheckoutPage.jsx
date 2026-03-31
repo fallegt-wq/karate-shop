@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { createParticipant, createRegistration } from '../api/registrations';
 
 function formatISK(value) {
   return new Intl.NumberFormat('is-IS', {
@@ -15,6 +16,7 @@ export default function RegistrationCheckoutPage() {
 
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const course = location.state?.course || null;
   const participant = location.state?.participant || null;
@@ -31,20 +33,48 @@ export default function RegistrationCheckoutPage() {
     };
   }, [course]);
 
-  const handleCompleteRegistration = () => {
+  const handleCompleteRegistration = async () => {
     if (!course || !participant || !acceptTerms) return;
 
-    setIsSubmitting(true);
+    try {
+      setIsSubmitting(true);
+      setErrorMessage('');
 
-    setTimeout(() => {
+      let participantId = participant.id;
+
+      if (String(participantId).startsWith('p-')) {
+        const createdParticipant = await createParticipant({
+          fullName: participant.name,
+          kennitala: participant.kennitala || '',
+          birthDate: participant.birthDate || '',
+        });
+
+        participantId = createdParticipant.id;
+      }
+
+      const registration = await createRegistration({
+        participantId,
+        courseId: course.id,
+        courseTitle: course.title,
+        coursePrice: course.price || 0,
+      });
+
       navigate('/registration/success', {
         state: {
           course,
-          participant,
+          participant: {
+            ...participant,
+            id: participantId,
+          },
           orderSummary,
+          registration,
         },
       });
-    }, 700);
+    } catch (error) {
+      setErrorMessage(error.message || 'Villa kom upp við að vista skráningu');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (missingData) {
@@ -90,7 +120,7 @@ export default function RegistrationCheckoutPage() {
             Ljúka skráningu
           </h1>
           <p className="text-gray-600 mt-2">
-            Eitt skref eftir. Staðfestu upplýsingar og kláraðu greiðslu.
+            Eitt skref eftir. Staðfestu upplýsingar og kláraðu skráningu.
           </p>
         </div>
 
@@ -158,12 +188,12 @@ export default function RegistrationCheckoutPage() {
 
             <div className="bg-white border border-gray-200 rounded-3xl p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">
-                Greiðsluupplýsingar
+                Staðfesting
               </h2>
 
               <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-5">
                 <p className="text-sm text-gray-600">
-                  Hér kemur næst raunveruleg greiðslugátt. Í v1 er þetta staðfestingarskref áður en backend og payment provider eru tengd.
+                  Næsta stóra skref eftir þetta er að tengja skráningu við raunverulega greiðslugátt og order/payment módelið.
                 </p>
               </div>
 
@@ -178,6 +208,12 @@ export default function RegistrationCheckoutPage() {
                   Ég staðfesti að upplýsingarnar séu réttar og samþykki skilmála félagsins.
                 </span>
               </label>
+
+              {errorMessage && (
+                <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {errorMessage}
+                </div>
+              )}
             </div>
           </section>
 
@@ -222,7 +258,7 @@ export default function RegistrationCheckoutPage() {
                 disabled={!acceptTerms || isSubmitting}
                 className="w-full rounded-xl bg-red-700 hover:bg-red-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3"
               >
-                {isSubmitting ? 'Vinn skráningu...' : 'Greiða og klára skráningu'}
+                {isSubmitting ? 'Vista skráningu...' : 'Staðfesta skráningu'}
               </button>
 
               <button

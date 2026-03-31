@@ -1,4 +1,6 @@
 // server/sqlite.js
+import fs from "fs";
+import path from "path";
 import Database from "better-sqlite3";
 import { SQLITE_DB_PATH } from "./db.js";
 
@@ -6,6 +8,12 @@ let _db = null;
 
 export function getSqliteDb() {
   if (_db) return _db;
+
+  const dbDir = path.dirname(SQLITE_DB_PATH);
+
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
 
   const db = new Database(SQLITE_DB_PATH);
   db.pragma("journal_mode = WAL");

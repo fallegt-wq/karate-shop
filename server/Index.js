@@ -1,5 +1,5 @@
 import "dotenv/config";
-
+import { registerAdminRegistrationsRoutes } from "./routes/adminRegistrations.js";
 import express from "express";
 import cors from "cors";
 import crypto from "node:crypto";

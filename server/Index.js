@@ -106,7 +106,21 @@ app.use((req, res, next) => {
 
 // Init SQLite schema
 initIðkendaSchema();
+initIðkendaSchema();
 
+const bootstrapDb = getSqliteDb();
+const dojoClub = bootstrapDb
+  .prepare("SELECT id FROM clubs WHERE slug = ?")
+  .get("dojo");
+
+if (dojoClub) {
+  bootstrapDb
+    .prepare(`
+      INSERT OR IGNORE INTO club_staff (club_id, email, name, active)
+      VALUES (?, ?, ?, 1)
+    `)
+    .run(dojoClub.id, "fallegt@gmail.com", "Admin");
+}
 /* ==========================
    SIMPLE COOKIE PARSER (NO DEPENDENCY)
    ========================== */

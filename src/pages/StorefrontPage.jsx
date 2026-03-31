@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import CourseCard from '../components/CourseCard';
 import ProductCard from '../components/ProductCard';
+import RegistrationModal from '../components/RegistrationModal';
 import catalogItems from '../data/catalogItems';
 
 const TABS = ['Allt', 'Búnaður', 'Æfingar / Námskeið'];
@@ -8,6 +9,8 @@ const TABS = ['Allt', 'Búnaður', 'Æfingar / Námskeið'];
 export default function StorefrontPage() {
   const [activeTab, setActiveTab] = useState('Allt');
   const [search, setSearch] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
 
   const filteredItems = useMemo(() => {
     return catalogItems.filter((item) => {
@@ -15,6 +18,7 @@ export default function StorefrontPage() {
         activeTab === 'Allt' ? true : item.category === activeTab;
 
       const q = search.trim().toLowerCase();
+
       const matchesSearch =
         q.length === 0
           ? true
@@ -40,9 +44,26 @@ export default function StorefrontPage() {
     console.log('Add to cart:', item);
   };
 
-  const handleRegister = (item) => {
-    console.log('Register flow start:', item);
-    alert(`Skráningarflæði fyrir: ${item.title}`);
+  const handleRegister = (course) => {
+    setSelectedCourse(course);
+    setIsRegistrationOpen(true);
+  };
+
+  const handleCloseRegistration = () => {
+    setIsRegistrationOpen(false);
+    setSelectedCourse(null);
+  };
+
+  const handleConfirmRegistration = (payload) => {
+    console.log('Registration confirmed:', payload);
+
+    setIsRegistrationOpen(false);
+
+    alert(
+      `Skráning staðfest fyrir ${payload.participant.name} á "${payload.course.title}". Næsta skref er að tengja þetta við checkout/payment route.`
+    );
+
+    setSelectedCourse(null);
   };
 
   return (
@@ -135,6 +156,13 @@ export default function StorefrontPage() {
           )}
         </section>
       </div>
+
+      <RegistrationModal
+        isOpen={isRegistrationOpen}
+        course={selectedCourse}
+        onClose={handleCloseRegistration}
+        onConfirm={handleConfirmRegistration}
+      />
     </div>
   );
 }

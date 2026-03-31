@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 function formatISK(value) {
   return new Intl.NumberFormat('is-IS', {
@@ -30,6 +30,7 @@ export default function RegistrationModal({
   onClose,
 }) {
   const navigate = useNavigate();
+  const { clubSlug } = useParams();
 
   const [step, setStep] = useState(1);
   const [participants, setParticipants] = useState(MOCK_PARTICIPANTS);
@@ -113,7 +114,7 @@ export default function RegistrationModal({
   const handleGoToCheckout = () => {
     if (!selectedParticipant || !course) return;
 
-    navigate('/registration/checkout', {
+    navigate(`/c/${clubSlug}/registration/checkout`, {
       state: {
         course,
         participant: selectedParticipant,

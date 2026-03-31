@@ -108,7 +108,7 @@ app.use((req, res, next) => {
 
 // Init SQLite schema
 initIðkendaSchema();
-initIðkendaSchema();
+initRegistrationTables();
 
 const bootstrapDb = getSqliteDb();
 const dojoClub = bootstrapDb

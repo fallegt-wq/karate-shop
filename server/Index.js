@@ -347,7 +347,7 @@ function requireClubStaff(req, res, next) {
     });
   }
 }
-
+registerAdminRegistrationsRoutes(app, requireSession, requireClubStaff);
 /* ==========================
    HEALTH
    ========================== */

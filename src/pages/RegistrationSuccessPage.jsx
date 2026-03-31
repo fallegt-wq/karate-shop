@@ -27,7 +27,7 @@ export default function RegistrationSuccessPage() {
           </div>
 
           <div className="text-sm font-semibold text-green-700 mb-2">
-            Skráning vistuð
+            Skráning móttekin
           </div>
 
           <h1 className="text-3xl font-bold text-gray-900 mb-3">
@@ -35,7 +35,7 @@ export default function RegistrationSuccessPage() {
           </h1>
 
           <p className="text-gray-600 mb-8">
-            Skráningin hefur verið vistuð í kerfið. Næsta skref er að tengja þetta við payment/order grunn og admin úrvinnslu.
+            Skráningin hefur verið vistuð á réttan klúbb og á nú að birtast í admin skráningum. Næsta skref verður að tengja þetta flæði við raunverulega greiðslugátt.
           </p>
 
           <div className="rounded-2xl border border-gray-200 p-6 space-y-5 mb-8">

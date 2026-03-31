@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import {
   fetchAdminRegistrations,
   updateAdminRegistration,
@@ -41,6 +42,8 @@ const PAYMENT_STATUS_OPTIONS = [
 ];
 
 export default function AdminRegistrations() {
+  const { clubSlug } = useParams();
+
   const [items, setItems] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
@@ -55,9 +58,9 @@ export default function AdminRegistrations() {
       try {
         setLoading(true);
         setErrorMessage('');
-        const data = await fetchAdminRegistrations();
+        const data = await fetchAdminRegistrations(clubSlug);
         if (!alive) return;
-        setItems(data);
+        setItems(Array.isArray(data?.registrations) ? data.registrations : []);
       } catch (error) {
         if (!alive) return;
         setErrorMessage(error.message || 'Ekki tókst að hlaða skráningum');
@@ -69,7 +72,7 @@ export default function AdminRegistrations() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [clubSlug]);
 
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -94,7 +97,7 @@ export default function AdminRegistrations() {
               item.paymentStatus,
             ]
               .filter(Boolean)
-              .some((value) => value.toLowerCase().includes(q));
+              .some((value) => String(value).toLowerCase().includes(q));
 
       return matchesStatus && matchesPayment && matchesSearch;
     });
@@ -102,9 +105,10 @@ export default function AdminRegistrations() {
 
   const handleUpdate = async (id, payload) => {
     try {
-      const updated = await updateAdminRegistration(id, payload);
+      const updated = await updateAdminRegistration(clubSlug, id, payload);
+
       setItems((current) =>
-        current.map((item) => (item.id === id ? updated : item))
+        current.map((item) => (item.id === id ? updated.registration : item))
       );
     } catch (error) {
       alert(error.message || 'Ekki tókst að uppfæra skráningu');
@@ -114,50 +118,65 @@ export default function AdminRegistrations() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-7xl p-6">
-        <div className="mb-6">
-          <div className="text-sm font-semibold text-red-600 mb-2">
-            Admin
+        <div className="mb-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="mb-2 text-sm font-semibold text-red-600">Admin</div>
+              <h1 className="text-3xl font-bold text-gray-900">Skráningar</h1>
+              <p className="mt-2 text-gray-600">
+                Yfirlit yfir námskeiðaskráningar fyrir {clubSlug}.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Link
+                to={`/c/${clubSlug}/admin`}
+                className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Til baka í admin
+              </Link>
+              <Link
+                to={`/c/${clubSlug}`}
+                className="rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white"
+              >
+                Opna klúbbssíðu
+              </Link>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Skráningar
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Yfirlit yfir nýjar skráningar og staða þeirra.
-          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white border border-gray-200 rounded-2xl p-4">
+        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
             <div className="text-sm text-gray-500">Alls</div>
-            <div className="text-2xl font-bold text-gray-900 mt-1">
+            <div className="mt-1 text-2xl font-bold text-gray-900">
               {items.length}
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-2xl p-4">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
             <div className="text-sm text-gray-500">Pending</div>
-            <div className="text-2xl font-bold text-gray-900 mt-1">
+            <div className="mt-1 text-2xl font-bold text-gray-900">
               {items.filter((item) => item.status === 'pending').length}
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-2xl p-4">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
             <div className="text-sm text-gray-500">Unpaid</div>
-            <div className="text-2xl font-bold text-gray-900 mt-1">
+            <div className="mt-1 text-2xl font-bold text-gray-900">
               {items.filter((item) => item.paymentStatus === 'unpaid').length}
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-2xl p-4">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
             <div className="text-sm text-gray-500">Paid</div>
-            <div className="text-2xl font-bold text-gray-900 mt-1">
+            <div className="mt-1 text-2xl font-bold text-gray-900">
               {items.filter((item) => item.paymentStatus === 'paid').length}
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-3xl p-4 md:p-5 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-[1.3fr_0.7fr_0.7fr] gap-3">
+        <div className="mb-6 rounded-3xl border border-gray-200 bg-white p-4 md:p-5">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[1.3fr_0.7fr_0.7fr]">
             <input
               type="text"
               value={search}
@@ -169,7 +188,7 @@ export default function AdminRegistrations() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-red-500 bg-white"
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-red-500"
             >
               <option value="all">Öll status</option>
               {STATUS_OPTIONS.map((option) => (
@@ -182,7 +201,7 @@ export default function AdminRegistrations() {
             <select
               value={paymentFilter}
               onChange={(e) => setPaymentFilter(e.target.value)}
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-red-500 bg-white"
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-red-500"
             >
               <option value="all">Öll payment status</option>
               {PAYMENT_STATUS_OPTIONS.map((option) => (
@@ -195,19 +214,19 @@ export default function AdminRegistrations() {
         </div>
 
         {loading && (
-          <div className="bg-white border border-gray-200 rounded-3xl p-8 text-gray-600">
+          <div className="rounded-3xl border border-gray-200 bg-white p-8 text-gray-600">
             Hleð skráningum...
           </div>
         )}
 
         {!loading && errorMessage && (
-          <div className="bg-white border border-red-200 rounded-3xl p-6 text-red-700">
+          <div className="rounded-3xl border border-red-200 bg-white p-6 text-red-700">
             {errorMessage}
           </div>
         )}
 
         {!loading && !errorMessage && filteredItems.length === 0 && (
-          <div className="bg-white border border-gray-200 rounded-3xl p-8 text-gray-500">
+          <div className="rounded-3xl border border-gray-200 bg-white p-8 text-gray-500">
             Engar skráningar fundust.
           </div>
         )}
@@ -217,12 +236,12 @@ export default function AdminRegistrations() {
             {filteredItems.map((item) => (
               <div
                 key={item.id}
-                className="bg-white border border-gray-200 rounded-3xl p-5"
+                className="rounded-3xl border border-gray-200 bg-white p-5"
               >
-                <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_1fr_0.8fr] gap-6">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_1fr_0.8fr]">
                   <div>
                     <div className="text-sm text-gray-500">Skráning #{item.id}</div>
-                    <div className="text-xl font-bold text-gray-900 mt-1">
+                    <div className="mt-1 text-xl font-bold text-gray-900">
                       {item.courseTitle}
                     </div>
 
@@ -247,7 +266,7 @@ export default function AdminRegistrations() {
                   </div>
 
                   <div>
-                    <div className="text-sm font-medium text-gray-900 mb-3">
+                    <div className="mb-3 text-sm font-medium text-gray-900">
                       Uppfæra stöðu
                     </div>
 
@@ -257,7 +276,7 @@ export default function AdminRegistrations() {
                         onChange={(e) =>
                           handleUpdate(item.id, { status: e.target.value })
                         }
-                        className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-red-500 bg-white"
+                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-red-500"
                       >
                         {STATUS_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -273,7 +292,7 @@ export default function AdminRegistrations() {
                             paymentStatus: e.target.value,
                           })
                         }
-                        className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-red-500 bg-white"
+                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-red-500"
                       >
                         {PAYMENT_STATUS_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -285,22 +304,20 @@ export default function AdminRegistrations() {
                   </div>
 
                   <div>
-                    <div className="text-sm font-medium text-gray-900 mb-3">
+                    <div className="mb-3 text-sm font-medium text-gray-900">
                       Núverandi staða
                     </div>
 
                     <div className="space-y-3">
-                      <div className="rounded-2xl bg-gray-50 border border-gray-200 px-4 py-3">
-                        <div className="text-xs text-gray-500 mb-1">Status</div>
+                      <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
+                        <div className="mb-1 text-xs text-gray-500">Status</div>
                         <div className="font-semibold text-gray-900">
                           {item.status}
                         </div>
                       </div>
 
-                      <div className="rounded-2xl bg-gray-50 border border-gray-200 px-4 py-3">
-                        <div className="text-xs text-gray-500 mb-1">
-                          Payment
-                        </div>
+                      <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
+                        <div className="mb-1 text-xs text-gray-500">Payment</div>
                         <div className="font-semibold text-gray-900">
                           {item.paymentStatus}
                         </div>

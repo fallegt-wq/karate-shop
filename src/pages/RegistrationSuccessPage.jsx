@@ -15,6 +15,7 @@ export default function RegistrationSuccessPage() {
   const course = location.state?.course || null;
   const participant = location.state?.participant || null;
   const orderSummary = location.state?.orderSummary || null;
+  const registration = location.state?.registration || null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -25,7 +26,7 @@ export default function RegistrationSuccessPage() {
           </div>
 
           <div className="text-sm font-semibold text-green-700 mb-2">
-            Skráning staðfest
+            Skráning vistuð
           </div>
 
           <h1 className="text-3xl font-bold text-gray-900 mb-3">
@@ -33,10 +34,19 @@ export default function RegistrationSuccessPage() {
           </h1>
 
           <p className="text-gray-600 mb-8">
-            Skráningin hefur verið móttekin og næsta skref er að tengja þetta við raunverulegt payment + registration backend.
+            Skráningin hefur verið vistuð í kerfið. Næsta skref er að tengja þetta við payment/order grunn og admin úrvinnslu.
           </p>
 
           <div className="rounded-2xl border border-gray-200 p-6 space-y-5 mb-8">
+            {registration && (
+              <div>
+                <div className="text-sm text-gray-500">Skráningarnúmer</div>
+                <div className="font-semibold text-gray-900 mt-1">
+                  #{registration.id}
+                </div>
+              </div>
+            )}
+
             {participant && (
               <div>
                 <div className="text-sm text-gray-500">Iðkandi</div>
@@ -55,23 +65,22 @@ export default function RegistrationSuccessPage() {
               </div>
             )}
 
-            {course?.schedule && (
-              <div>
-                <div className="text-sm text-gray-500">Tími</div>
-                <div className="text-gray-900 mt-1">{course.schedule}</div>
-              </div>
-            )}
-
-            {course?.location && (
-              <div>
-                <div className="text-sm text-gray-500">Staðsetning</div>
-                <div className="text-gray-900 mt-1">{course.location}</div>
+            {registration && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm text-gray-500">Staða</div>
+                  <div className="text-gray-900 mt-1">{registration.status}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500">Greiðslustaða</div>
+                  <div className="text-gray-900 mt-1">{registration.paymentStatus}</div>
+                </div>
               </div>
             )}
 
             {orderSummary && (
               <div className="pt-4 border-t border-gray-200 flex items-center justify-between">
-                <span className="text-gray-600">Greitt samtals</span>
+                <span className="text-gray-600">Samtals</span>
                 <span className="text-2xl font-bold text-red-600">
                   {formatISK(orderSummary.total)}
                 </span>

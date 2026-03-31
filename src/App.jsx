@@ -1,20 +1,3 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import StorefrontPage from './pages/StorefrontPage';
-import RegistrationCheckoutPage from './pages/RegistrationCheckoutPage';
-import RegistrationSuccessPage from './pages/RegistrationSuccessPage';
-
-export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<StorefrontPage />} />
-        <Route path="/registration/checkout" element={<RegistrationCheckoutPage />} />
-        <Route path="/registration/success" element={<RegistrationSuccessPage />} />
-      </Routes>
-    </BrowserRouter>
-  );
-}
 import React, { useEffect } from "react";
 import {
   BrowserRouter,
@@ -41,6 +24,13 @@ const LazyOrders = React.lazy(() => import("./pages/account/Orders.jsx"));
 const LazyAdminDashboard = React.lazy(() => import("./pages/admin/AdminDashboard.jsx"));
 const LazyAdminTheme = React.lazy(() => import("./pages/admin/AdminTheme.jsx"));
 const LazyAdminOrders = React.lazy(() => import("./pages/admin/AdminOrders.jsx"));
+
+const LazyRegistrationCheckoutPage = React.lazy(() =>
+  import("./pages/RegistrationCheckoutPage.jsx")
+);
+const LazyRegistrationSuccessPage = React.lazy(() =>
+  import("./pages/RegistrationSuccessPage.jsx")
+);
 
 const DEFAULT_CLUB_SLUG = "dojo";
 
@@ -189,6 +179,36 @@ export default function App() {
                   <LazyCheckout />
                 </SuspenseWrap>
               </ErrorBoundary>
+            </RouteShell>
+          }
+        />
+
+        <Route
+          path="/c/:clubSlug/registration/checkout"
+          element={
+            <RouteShell>
+              <RequireSession>
+                <ErrorBoundary>
+                  <SuspenseWrap label="Registration Checkout">
+                    <LazyRegistrationCheckoutPage />
+                  </SuspenseWrap>
+                </ErrorBoundary>
+              </RequireSession>
+            </RouteShell>
+          }
+        />
+
+        <Route
+          path="/c/:clubSlug/registration/success"
+          element={
+            <RouteShell>
+              <RequireSession>
+                <ErrorBoundary>
+                  <SuspenseWrap label="Registration Success">
+                    <LazyRegistrationSuccessPage />
+                  </SuspenseWrap>
+                </ErrorBoundary>
+              </RequireSession>
             </RouteShell>
           }
         />

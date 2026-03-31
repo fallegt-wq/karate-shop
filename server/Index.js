@@ -364,6 +364,7 @@ function requireClubStaff(req, res, next) {
   }
 }
 registerAdminRegistrationsRoutes(app, requireSession, requireClubStaff);
+registerParticipantRoutes(app, requireSession);
 /* ==========================
    HEALTH
    ========================== */

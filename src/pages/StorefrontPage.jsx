@@ -54,18 +54,6 @@ export default function StorefrontPage() {
     setSelectedCourse(null);
   };
 
-  const handleConfirmRegistration = (payload) => {
-    console.log('Registration confirmed:', payload);
-
-    setIsRegistrationOpen(false);
-
-    alert(
-      `Skráning staðfest fyrir ${payload.participant.name} á "${payload.course.title}". Næsta skref er að tengja þetta við checkout/payment route.`
-    );
-
-    setSelectedCourse(null);
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
@@ -161,7 +149,6 @@ export default function StorefrontPage() {
         isOpen={isRegistrationOpen}
         course={selectedCourse}
         onClose={handleCloseRegistration}
-        onConfirm={handleConfirmRegistration}
       />
     </div>
   );

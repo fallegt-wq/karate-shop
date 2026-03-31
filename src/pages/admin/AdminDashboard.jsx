@@ -164,7 +164,7 @@ export default function AdminDashboard() {
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-gray-600">
               Hér sérðu stöðu klúbbsins í fljótu bragði. Þetta dashboard er grunnurinn
-              að pantanastýringu, skilaboðum, greiðslum og rekstraryfirsýn.
+              að pantanastýringu, skráningum, skilaboðum, greiðslum og rekstraryfirsýn.
             </p>
           </div>
 
@@ -180,6 +180,12 @@ export default function AdminDashboard() {
               className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
             >
               Skoða pantanir
+            </Link>
+            <Link
+              to={`/c/${clubSlug}/admin/registrations`}
+              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Skoða skráningar
             </Link>
             <Link
               to={`/c/${clubSlug}/admin/theme`}
@@ -280,6 +286,16 @@ export default function AdminDashboard() {
           </Link>
 
           <Link
+            to={`/c/${clubSlug}/admin/registrations`}
+            className="rounded-2xl border p-4 transition hover:bg-gray-50"
+          >
+            <div className="text-base font-semibold text-zinc-900">Skráningar</div>
+            <div className="mt-1 text-sm text-gray-600">
+              Skoða námskeiðaskráningar, stöðu og greiðslustöðu á einum stað.
+            </div>
+          </Link>
+
+          <Link
             to={`/c/${clubSlug}/admin/theme`}
             className="rounded-2xl border p-4 transition hover:bg-gray-50"
           >
@@ -288,13 +304,6 @@ export default function AdminDashboard() {
               Uppfæra liti, branding og club look.
             </div>
           </Link>
-
-          <div className="rounded-2xl border p-4 opacity-70">
-            <div className="text-base font-semibold text-zinc-900">Skilaboð</div>
-            <div className="mt-1 text-sm text-gray-600">
-              Næsta skref: inbox, threads og admin sendingar.
-            </div>
-          </div>
         </div>
       </SectionCard>
 
@@ -307,7 +316,7 @@ export default function AdminDashboard() {
         ) : (
           <EmptyState
             title="Activity feed tengist næst"
-            body="Þegar við bætum við audit logs og admin actions mun öll mikilvæg virkni birtast hér: theme updates, pöntunarbreytingar, skilaboð og fleira."
+            body="Þegar við bætum við audit logs og admin actions mun öll mikilvæg virkni birtast hér: theme updates, pöntunarbreytingar, skráningabreytingar, skilaboð og fleira."
           />
         )}
       </SectionCard>

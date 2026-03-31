@@ -24,6 +24,9 @@ const LazyOrders = React.lazy(() => import("./pages/account/Orders.jsx"));
 const LazyAdminDashboard = React.lazy(() => import("./pages/admin/AdminDashboard.jsx"));
 const LazyAdminTheme = React.lazy(() => import("./pages/admin/AdminTheme.jsx"));
 const LazyAdminOrders = React.lazy(() => import("./pages/admin/AdminOrders.jsx"));
+const LazyAdminRegistrations = React.lazy(() =>
+  import("./pages/admin/AdminRegistrations.jsx")
+);
 
 const LazyRegistrationCheckoutPage = React.lazy(() =>
   import("./pages/RegistrationCheckoutPage.jsx")
@@ -236,6 +239,21 @@ export default function App() {
                 <ErrorBoundary>
                   <SuspenseWrap label="Admin Orders">
                     <LazyAdminOrders />
+                  </SuspenseWrap>
+                </ErrorBoundary>
+              </AdminGuard>
+            </RouteShell>
+          }
+        />
+
+        <Route
+          path="/c/:clubSlug/admin/registrations"
+          element={
+            <RouteShell>
+              <AdminGuard>
+                <ErrorBoundary>
+                  <SuspenseWrap label="Admin Registrations">
+                    <LazyAdminRegistrations />
                   </SuspenseWrap>
                 </ErrorBoundary>
               </AdminGuard>

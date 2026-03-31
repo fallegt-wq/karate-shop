@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 function formatISK(value) {
   return new Intl.NumberFormat('is-IS', {
@@ -27,8 +28,9 @@ export default function RegistrationModal({
   isOpen,
   course,
   onClose,
-  onConfirm,
 }) {
+  const navigate = useNavigate();
+
   const [step, setStep] = useState(1);
   const [participants, setParticipants] = useState(MOCK_PARTICIPANTS);
   const [selectedParticipantId, setSelectedParticipantId] = useState('');
@@ -108,13 +110,17 @@ export default function RegistrationModal({
     setStep(2);
   };
 
-  const handleConfirm = () => {
+  const handleGoToCheckout = () => {
     if (!selectedParticipant || !course) return;
 
-    onConfirm?.({
-      course,
-      participant: selectedParticipant,
+    navigate('/registration/checkout', {
+      state: {
+        course,
+        participant: selectedParticipant,
+      },
     });
+
+    onClose?.();
   };
 
   return (
@@ -180,7 +186,7 @@ export default function RegistrationModal({
                     2
                   </div>
                   <span className={step >= 2 ? 'text-gray-900 font-medium' : 'text-gray-500'}>
-                    Staðfesta
+                    Checkout
                   </span>
                 </div>
               </div>
@@ -321,10 +327,10 @@ export default function RegistrationModal({
                   <>
                     <div className="mb-5">
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        Staðfesta skráningu
+                        Halda áfram í checkout
                       </h3>
                       <p className="text-sm text-gray-600">
-                        Yfirfarðu upplýsingarnar áður en þú heldur áfram í greiðslu.
+                        Nú förum við með valinn iðkanda og námskeið yfir á greiðslusíðu.
                       </p>
                     </div>
 
@@ -342,15 +348,6 @@ export default function RegistrationModal({
                           {course.title}
                         </div>
                       </div>
-
-                      {course.ageLabel && (
-                        <div>
-                          <div className="text-sm text-gray-500">Aldur</div>
-                          <div className="text-base text-gray-900">
-                            {course.ageLabel}
-                          </div>
-                        </div>
-                      )}
 
                       {course.schedule && (
                         <div>
@@ -387,24 +384,6 @@ export default function RegistrationModal({
                     </div>
                   </div>
 
-                  {course.schedule && (
-                    <div>
-                      <div className="text-sm text-gray-500">Tími</div>
-                      <div className="text-sm text-gray-900 mt-1">
-                        {course.schedule}
-                      </div>
-                    </div>
-                  )}
-
-                  {course.location && (
-                    <div>
-                      <div className="text-sm text-gray-500">Staðsetning</div>
-                      <div className="text-sm text-gray-900 mt-1">
-                        {course.location}
-                      </div>
-                    </div>
-                  )}
-
                   {selectedParticipant && (
                     <div>
                       <div className="text-sm text-gray-500">Valinn iðkandi</div>
@@ -438,7 +417,7 @@ export default function RegistrationModal({
                     <>
                       <button
                         type="button"
-                        onClick={handleConfirm}
+                        onClick={handleGoToCheckout}
                         className="w-full rounded-xl bg-red-700 hover:bg-red-800 text-white font-semibold py-3"
                       >
                         Áfram í greiðslu

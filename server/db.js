@@ -5,15 +5,11 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const defaultDbDir = path.join(__dirname, "db");
-const configuredDbDir = process.env.SQLITE_DB_DIR
-  ? path.resolve(process.cwd(), process.env.SQLITE_DB_DIR)
-  : defaultDbDir;
+// alltaf nota local db möppu (ekki /var/data)
+const dbDir = path.join(__dirname, "db");
 
-fs.mkdirSync(configuredDbDir, { recursive: true });
+fs.mkdirSync(dbDir, { recursive: true });
 
-export const ORDERS_DB_PATH = path.join(configuredDbDir, "orders.json");
+export const ORDERS_DB_PATH = path.join(dbDir, "orders.json");
 
-export const SQLITE_DB_PATH = process.env.SQLITE_DB_PATH
-  ? path.resolve(process.cwd(), process.env.SQLITE_DB_PATH)
-  : path.join(configuredDbDir, "sqlite.db");
+export const SQLITE_DB_PATH = path.join(dbDir, "sqlite.db");

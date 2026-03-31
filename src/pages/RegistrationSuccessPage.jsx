@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 
 function formatISK(value) {
   return new Intl.NumberFormat('is-IS', {
@@ -11,6 +11,7 @@ function formatISK(value) {
 
 export default function RegistrationSuccessPage() {
   const location = useLocation();
+  const { clubSlug } = useParams();
 
   const course = location.state?.course || null;
   const participant = location.state?.participant || null;
@@ -90,14 +91,14 @@ export default function RegistrationSuccessPage() {
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
-              to="/"
+              to={`/c/${clubSlug}`}
               className="inline-flex items-center justify-center rounded-xl bg-red-700 hover:bg-red-800 text-white font-semibold px-5 py-3"
             >
               Til baka í yfirlit
             </Link>
 
             <Link
-              to="/my-area"
+              to={`/c/${clubSlug}/account`}
               className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 font-semibold px-5 py-3"
             >
               Fara í Mitt svæði

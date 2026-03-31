@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { createParticipant, createRegistration } from '../api/registrations';
 
 function formatISK(value) {
@@ -13,6 +13,7 @@ function formatISK(value) {
 export default function RegistrationCheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { clubSlug } = useParams();
 
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,7 +60,7 @@ export default function RegistrationCheckoutPage() {
         coursePrice: course.price || 0,
       });
 
-      navigate('/registration/success', {
+      navigate(`/c/${clubSlug}/registration/success`, {
         state: {
           course,
           participant: {
@@ -89,7 +90,7 @@ export default function RegistrationCheckoutPage() {
               Það vantar valið námskeið eða iðkanda til að halda áfram í checkout.
             </p>
             <Link
-              to="/"
+              to={`/c/${clubSlug}`}
               className="inline-flex items-center rounded-xl bg-red-700 hover:bg-red-800 text-white font-semibold px-5 py-3"
             >
               Til baka í yfirlit
@@ -105,7 +106,7 @@ export default function RegistrationCheckoutPage() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-8">
         <div className="mb-6">
           <Link
-            to="/"
+            to={`/c/${clubSlug}`}
             className="text-sm font-medium text-red-700 hover:text-red-800"
           >
             ← Til baka í yfirlit

@@ -29,8 +29,20 @@ export async function createParticipant(payload) {
   return response.json();
 }
 
-export async function createRegistration(payload) {
-  const response = await fetch('/api/registrations', {
+export async function createRegistration(arg1, arg2) {
+  const hasExplicitClubSlug = typeof arg1 === 'string';
+
+  const clubSlug = hasExplicitClubSlug
+    ? arg1
+    : String(arg1?.clubSlug || '').trim();
+
+  const payload = hasExplicitClubSlug ? arg2 : arg1;
+
+  const url = clubSlug
+    ? `/api/clubs/${clubSlug}/registrations`
+    : '/api/registrations';
+
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

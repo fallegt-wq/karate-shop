@@ -1,3 +1,5 @@
+import initRegistrationTables from "./db/initRegistrationTables.js";
+import { registerParticipantRoutes } from "./routes/participants.js";
 import "dotenv/config";
 import { registerAdminRegistrationsRoutes } from "./routes/adminRegistrations.js";
 import express from "express";

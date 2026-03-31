@@ -1,3 +1,20 @@
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import StorefrontPage from './pages/StorefrontPage';
+import RegistrationCheckoutPage from './pages/RegistrationCheckoutPage';
+import RegistrationSuccessPage from './pages/RegistrationSuccessPage';
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<StorefrontPage />} />
+        <Route path="/registration/checkout" element={<RegistrationCheckoutPage />} />
+        <Route path="/registration/success" element={<RegistrationSuccessPage />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
 import React, { useEffect } from "react";
 import {
   BrowserRouter,

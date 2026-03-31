@@ -53,11 +53,12 @@ export default function RegistrationCheckoutPage() {
         participantId = createdParticipant.id;
       }
 
-      const registration = await createRegistration({
+      const registration = await createRegistration(clubSlug, {
         participantId,
         courseId: course.id,
         courseTitle: course.title,
         coursePrice: course.price || 0,
+        clubSlug,
       });
 
       navigate(`/c/${clubSlug}/registration/success`, {
@@ -194,7 +195,7 @@ export default function RegistrationCheckoutPage() {
 
               <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-5">
                 <p className="text-sm text-gray-600">
-                  Næsta stóra skref eftir þetta er að tengja skráningu við raunverulega greiðslugátt og order/payment módelið.
+                  Skráningin verður nú vistuð rétt á klúbbinn svo hún birtist í admin skráningum. Næsta skref eftir þetta er að senda notandann áfram í raunverulega greiðslugátt.
                 </p>
               </div>
 

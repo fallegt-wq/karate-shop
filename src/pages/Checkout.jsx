@@ -3,7 +3,7 @@ import React, { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import ClubShell from "../components/layout/ClubShell";
-import { createOrderApi, markOrderPaid } from "../api/orders";
+import { createStripeCheckoutSession } from "../api/orders";
 
 function Field({ label, children, hint }) {
   return (
@@ -318,20 +318,15 @@ export default function Checkout() {
       setSuccessMessage("");
       setSubmitting(true);
 
-      const createdOrder = await createOrderApi(clubSlug, orderPayload);
+  const session = await createStripeCheckoutSession(clubSlug, orderPayload);
 
-      // Demo: merkja strax greitt svo backend vinni úr order
-      await markOrderPaid(clubSlug, createdOrder.order_id, "demo");
+if (!session?.url) {
+  throw new Error("Stripe session missing url");
+}
 
-      clear();
-      setSuccessMessage("Greiðsla skráð og skráning móttekin.");
-      navigate(`/c/${clubSlug}/registration/success`, {
-  state: {
-    fromCheckout: true,
-    buyerName: buyerName.trim(),
-    buyerEmail: buyerEmail.trim(),
-  },
-});
+clear();
+window.location.href = session.url;
+return;
     } catch (e) {
       setSubmitError(e?.message || "Mistókst að senda checkout");
     } finally {

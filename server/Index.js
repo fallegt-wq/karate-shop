@@ -15,7 +15,6 @@ import {
   listOrdersByBuyer,
   getOrder,
   updateOrderStatus,
-  updateOrderPayment,
 } from "./repo/ordersRepo.js";
 
 import {
@@ -62,6 +61,7 @@ import {
 } from "./validationClub.js";
 import { logAudit } from "./utils/auditLog.js";
 import stripe from "./utils/stripe.js";
+import { markOrderPaidAndProcess } from "./services/orderProcessing.js";
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -123,6 +123,7 @@ if (dojoClub) {
     `)
     .run(dojoClub.id, "fallegt@gmail.com", "Admin");
 }
+
 /* ==========================
    SIMPLE COOKIE PARSER (NO DEPENDENCY)
    ========================== */
@@ -278,7 +279,7 @@ function formatAmountForDashboard(value) {
    STRIPE WEBHOOK
    ========================== */
 
-app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), (req, res) => {
+app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
   if (!stripe || !process.env.STRIPE_WEBHOOK_SECRET) {
     return res.status(503).json({ error: "STRIPE_NOT_CONFIGURED" });
   }
@@ -305,11 +306,20 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), (req,
 
       if (orderId) {
         const db = getSqliteDb();
-        db.prepare(
-          `UPDATE orders
-           SET payment_status = 'PAID', payment_provider = 'stripe'
-           WHERE order_id = ?`
-        ).run(orderId);
+        const orderRow = db
+          .prepare(
+            `
+            SELECT club_slug, order_id
+            FROM orders
+            WHERE order_id = ?
+            LIMIT 1
+          `
+          )
+          .get(orderId);
+
+        if (orderRow?.club_slug) {
+          await markOrderPaidAndProcess(orderRow.club_slug, orderId, "stripe");
+        }
       }
     }
 
@@ -335,7 +345,7 @@ function requireSession(req, res, next) {
     return res.status(401).json({ error: "UNAUTHORIZED" });
   }
 
-  req.user = session; // { email, createdAt }
+  req.user = session;
   next();
 }
 
@@ -363,8 +373,10 @@ function requireClubStaff(req, res, next) {
     });
   }
 }
+
 registerAdminRegistrationsRoutes(app, requireSession, requireClubStaff);
 registerParticipantRoutes(app, requireSession);
+
 /* ==========================
    HEALTH
    ========================== */
@@ -377,10 +389,6 @@ app.get("/api/health", (req, res) => {
    CLUB PUBLIC (NEW, SAFE)
    ========================== */
 
-/**
- * PUBLIC: list clubs (for future umbrella site)
- * GET /api/clubs
- */
 app.get("/api/clubs", (req, res) => {
   try {
     const clubs = listClubsPublic();
@@ -390,10 +398,6 @@ app.get("/api/clubs", (req, res) => {
   }
 });
 
-/**
- * PUBLIC: club brand/template tokens
- * GET /api/clubs/:clubSlug/public
- */
 app.get("/api/clubs/:clubSlug/public", (req, res) => {
   try {
     const club = getClubPublicBySlug(req.params.clubSlug);
@@ -470,10 +474,6 @@ app.get("/api/me", requireSession, (req, res) => {
   res.json({ user: { email: req.user.email } });
 });
 
-/**
- * USER: role (staff vs user)
- * GET /api/clubs/:clubSlug/me/role
- */
 app.get("/api/clubs/:clubSlug/me/role", requireSession, (req, res) => {
   try {
     const email = String(req.user.email || "").trim().toLowerCase();
@@ -523,10 +523,6 @@ app.post("/api/clubs/:clubSlug/me/athletes", requireSession, (req, res) => {
   }
 });
 
-/**
- * USER: list my payments
- * GET /api/clubs/:clubSlug/me/payments?status=
- */
 app.get("/api/clubs/:clubSlug/me/payments", requireSession, (req, res) => {
   try {
     const email = String(req.user.email || "").trim().toLowerCase();
@@ -538,10 +534,6 @@ app.get("/api/clubs/:clubSlug/me/payments", requireSession, (req, res) => {
   }
 });
 
-/**
- * USER: payments summary
- * GET /api/clubs/:clubSlug/me/payments/summary
- */
 app.get("/api/clubs/:clubSlug/me/payments/summary", requireSession, (req, res) => {
   try {
     const email = String(req.user.email || "").trim().toLowerCase();
@@ -596,12 +588,14 @@ app.post("/api/clubs/:clubSlug/club/athletes/:athleteId/claim", requireSession, 
 
 app.post("/api/clubs/:clubSlug/orders", async (req, res) => {
   try {
-    // Attach buyer_email if there is a valid session (keep guest checkout working)
     let buyerEmail = null;
     const cookies = parseCookies(req);
     const token = cookies[SESSION_COOKIE_NAME];
     const session = readSession(token);
-    if (session?.email) buyerEmail = String(session.email || "").trim().toLowerCase();
+
+    if (session?.email) {
+      buyerEmail = String(session.email || "").trim().toLowerCase();
+    }
 
     const row = await createOrder(req.params.clubSlug, req.body, buyerEmail);
     res.status(201).json(row);
@@ -610,10 +604,6 @@ app.post("/api/clubs/:clubSlug/orders", async (req, res) => {
   }
 });
 
-/**
- * USER: create Stripe checkout session
- * POST /api/clubs/:clubSlug/checkout
- */
 app.post("/api/clubs/:clubSlug/checkout", requireSession, async (req, res) => {
   try {
     if (!stripe) {
@@ -641,7 +631,7 @@ app.post("/api/clubs/:clubSlug/checkout", requireSession, async (req, res) => {
         item_summary: description,
         amount,
         total_amount: amount,
-        currency: "usd",
+        currency: "isk",
         source: "stripe_checkout",
       },
       buyerEmail
@@ -657,7 +647,7 @@ app.post("/api/clubs/:clubSlug/checkout", requireSession, async (req, res) => {
       line_items: [
         {
           price_data: {
-            currency: "usd",
+            currency: "isk",
             product_data: {
               name: description || "Payment",
             },
@@ -680,10 +670,6 @@ app.post("/api/clubs/:clubSlug/checkout", requireSession, async (req, res) => {
   }
 });
 
-/**
- * USER: list my orders
- * GET /api/clubs/:clubSlug/me/orders
- */
 app.get("/api/clubs/:clubSlug/me/orders", requireSession, async (req, res) => {
   try {
     const email = String(req.user.email || "").trim().toLowerCase();
@@ -694,10 +680,6 @@ app.get("/api/clubs/:clubSlug/me/orders", requireSession, async (req, res) => {
   }
 });
 
-/**
- * STAFF ADMIN: list club orders
- * GET /api/clubs/:clubSlug/orders
- */
 app.get("/api/clubs/:clubSlug/orders", requireSession, requireClubStaff, async (req, res) => {
   try {
     res.json({ orders: await listOrders(req.params.clubSlug) });
@@ -706,10 +688,6 @@ app.get("/api/clubs/:clubSlug/orders", requireSession, requireClubStaff, async (
   }
 });
 
-/**
- * STAFF ADMIN: get one order
- * GET /api/clubs/:clubSlug/orders/:orderId
- */
 app.get("/api/clubs/:clubSlug/orders/:orderId", requireSession, requireClubStaff, async (req, res) => {
   try {
     const row = await getOrder(req.params.clubSlug, req.params.orderId);
@@ -720,10 +698,6 @@ app.get("/api/clubs/:clubSlug/orders/:orderId", requireSession, requireClubStaff
   }
 });
 
-/**
- * STAFF ADMIN: update order status
- * PATCH /api/clubs/:clubSlug/orders/:orderId/status
- */
 app.patch("/api/clubs/:clubSlug/orders/:orderId/status", requireSession, requireClubStaff, async (req, res) => {
   try {
     const row = await updateOrderStatus(req.params.clubSlug, req.params.orderId, req.body?.status);
@@ -745,10 +719,6 @@ app.patch("/api/clubs/:clubSlug/orders/:orderId/status", requireSession, require
   }
 });
 
-/**
- * STAFF ADMIN: dashboard summary
- * GET /api/clubs/:clubSlug/admin/dashboard
- */
 app.get("/api/clubs/:clubSlug/admin/dashboard", requireSession, requireClubStaff, async (req, res) => {
   try {
     const clubSlug = req.params.clubSlug;
@@ -758,19 +728,19 @@ app.get("/api/clubs/:clubSlug/admin/dashboard", requireSession, requireClubStaff
 
     const today = new Date().toISOString().slice(0, 10);
     const ordersToday = orders.filter((order) =>
-      String(order?.created_at || order?.createdAt || "").startsWith(today)
+      String(order?.created_at || "").startsWith(today)
     ).length;
 
     const revenueMonthValue = orders
       .filter((order) => normalizeStatusForDashboard(order?.status) === "PAID")
       .reduce((sum, order) => {
-        return sum + Number(order?.total_amount || order?.total || order?.amount || 0);
+        return sum + Number(order?.total_amount || 0);
       }, 0);
 
     const recentOrders = orders.slice(0, 5).map((order) => ({
       id: order.id,
       title: `Pöntun #${order.id}`,
-      meta: order.buyer_email || order.buyer_name || "Óþekktur kaupandi",
+      meta: order.buyer_email || order.body?.buyer?.name || "Óþekktur kaupandi",
       badge: String(order.status || "UNKNOWN"),
     }));
 
@@ -808,22 +778,22 @@ app.patch("/api/clubs/:clubSlug/orders/:orderId/payment", async (req, res) => {
       return res.status(400).json({ error: "BAD_REQUEST", message: "Only PAID is allowed in demo" });
     }
 
-    const row = await updateOrderPayment(req.params.clubSlug, req.params.orderId, {
-      status: "PAID",
-      provider: provider || "demo",
-    });
+    const result = await markOrderPaidAndProcess(
+      req.params.clubSlug,
+      req.params.orderId,
+      provider || "demo"
+    );
 
-    if (!row) return res.status(404).json({ error: "NOT_FOUND" });
-    res.json(row);
+    res.json(result.order);
   } catch (e) {
     res.status(400).json({ error: "BAD_REQUEST", message: e?.message || "Invalid payment" });
   }
 });
 
-/**
- * USER: list latest notifications
- * GET /api/clubs/:clubSlug/notifications
- */
+/* ==========================
+   USER: list latest notifications
+   ========================== */
+
 app.get("/api/clubs/:clubSlug/notifications", requireSession, (req, res) => {
   try {
     const db = getSqliteDb();
@@ -857,7 +827,6 @@ app.get("/api/clubs/:clubSlug/notifications", requireSession, (req, res) => {
    staff session based
    ========================== */
 
-// GROUPS
 app.get("/api/clubs/:clubSlug/club/groups", requireSession, requireClubStaff, (req, res) => {
   try {
     res.json({ groups: listGroups(req.params.clubSlug) });
@@ -875,7 +844,6 @@ app.post("/api/clubs/:clubSlug/club/groups", requireSession, requireClubStaff, (
   }
 });
 
-// ATHLETES
 app.get("/api/clubs/:clubSlug/club/athletes", requireSession, requireClubStaff, (req, res) => {
   try {
     res.json({ athletes: listAthletes(req.params.clubSlug, String(req.query.q || "")) });
@@ -893,7 +861,6 @@ app.post("/api/clubs/:clubSlug/club/athletes", requireSession, requireClubStaff,
   }
 });
 
-// ENROLLMENTS
 app.get("/api/clubs/:clubSlug/club/enrollments", requireSession, requireClubStaff, (req, res) => {
   try {
     const athleteId = req.query.athlete_id != null ? Number(req.query.athlete_id) : null;
@@ -912,7 +879,6 @@ app.post("/api/clubs/:clubSlug/club/enrollments", requireSession, requireClubSta
   }
 });
 
-// PAYMENTS
 app.get("/api/clubs/:clubSlug/club/payments", requireSession, requireClubStaff, (req, res) => {
   try {
     res.json({ payments: listPayments(req.params.clubSlug, String(req.query.status || "")) });
@@ -944,10 +910,6 @@ app.post("/api/clubs/:clubSlug/club/payments/:paymentId/mark-paid", requireSessi
    MESSAGES API
    ========================== */
 
-/**
- * USER: list staff directory (for DM picker)
- * GET /api/clubs/:clubSlug/me/messages/staff
- */
 app.get("/api/clubs/:clubSlug/me/messages/staff", requireSession, (req, res) => {
   try {
     res.json({ staff: listStaff(req.params.clubSlug) });
@@ -956,10 +918,6 @@ app.get("/api/clubs/:clubSlug/me/messages/staff", requireSession, (req, res) => 
   }
 });
 
-/**
- * USER: list threads
- * GET /api/clubs/:clubSlug/me/messages/threads?q=
- */
 app.get("/api/clubs/:clubSlug/me/messages/threads", requireSession, (req, res) => {
   try {
     const email = String(req.user.email || "").trim().toLowerCase();
@@ -970,10 +928,6 @@ app.get("/api/clubs/:clubSlug/me/messages/threads", requireSession, (req, res) =
   }
 });
 
-/**
- * USER: open thread (messages)
- * GET /api/clubs/:clubSlug/me/messages/threads/:threadId
- */
 app.get("/api/clubs/:clubSlug/me/messages/threads/:threadId", requireSession, (req, res) => {
   try {
     const clubSlug = req.params.clubSlug;
@@ -998,11 +952,6 @@ app.get("/api/clubs/:clubSlug/me/messages/threads/:threadId", requireSession, (r
   }
 });
 
-/**
- * USER: create/get DM thread and send message
- * POST /api/clubs/:clubSlug/me/messages/dm
- * Body: { staff_email, body }
- */
 app.post("/api/clubs/:clubSlug/me/messages/dm", requireSession, (req, res) => {
   try {
     const clubSlug = req.params.clubSlug;
@@ -1024,11 +973,6 @@ app.post("/api/clubs/:clubSlug/me/messages/dm", requireSession, (req, res) => {
   }
 });
 
-/**
- * USER: send message in existing thread
- * POST /api/clubs/:clubSlug/me/messages/threads/:threadId/messages
- * Body: { body }
- */
 app.post("/api/clubs/:clubSlug/me/messages/threads/:threadId/messages", requireSession, (req, res) => {
   try {
     const clubSlug = req.params.clubSlug;
@@ -1061,11 +1005,6 @@ app.post("/api/clubs/:clubSlug/me/messages/threads/:threadId/messages", requireS
   }
 });
 
-/**
- * USER: send group message by groupId (creates group thread if missing)
- * POST /api/clubs/:clubSlug/me/messages/groups/:groupId/messages
- * Body: { body }
- */
 app.post("/api/clubs/:clubSlug/me/messages/groups/:groupId/messages", requireSession, (req, res) => {
   try {
     const clubSlug = req.params.clubSlug;
@@ -1095,11 +1034,6 @@ app.post("/api/clubs/:clubSlug/me/messages/groups/:groupId/messages", requireSes
    session + active staff
    ========================== */
 
-/**
- * ADMIN: upsert staff directory
- * POST /api/clubs/:clubSlug/club/staff
- * Body: { email, name, active }
- */
 app.post("/api/clubs/:clubSlug/club/staff", requireSession, requireClubStaff, (req, res) => {
   try {
     const row = upsertStaff(req.params.clubSlug, req.body || {});
@@ -1109,10 +1043,6 @@ app.post("/api/clubs/:clubSlug/club/staff", requireSession, requireClubStaff, (r
   }
 });
 
-/**
- * ADMIN: list threads
- * GET /api/clubs/:clubSlug/club/messages/threads?q=
- */
 app.get("/api/clubs/:clubSlug/club/messages/threads", requireSession, requireClubStaff, (req, res) => {
   try {
     const q = String(req.query.q || "");
@@ -1122,10 +1052,6 @@ app.get("/api/clubs/:clubSlug/club/messages/threads", requireSession, requireClu
   }
 });
 
-/**
- * ADMIN: open thread
- * GET /api/clubs/:clubSlug/club/messages/threads/:threadId
- */
 app.get("/api/clubs/:clubSlug/club/messages/threads/:threadId", requireSession, requireClubStaff, (req, res) => {
   try {
     const clubSlug = req.params.clubSlug;
@@ -1140,11 +1066,6 @@ app.get("/api/clubs/:clubSlug/club/messages/threads/:threadId", requireSession, 
   }
 });
 
-/**
- * ADMIN: reply in thread as staff
- * POST /api/clubs/:clubSlug/club/messages/threads/:threadId/messages
- * Body: { staff_email, body }
- */
 app.post("/api/clubs/:clubSlug/club/messages/threads/:threadId/messages", requireSession, requireClubStaff, (req, res) => {
   try {
     const clubSlug = req.params.clubSlug;
@@ -1165,11 +1086,6 @@ app.post("/api/clubs/:clubSlug/club/messages/threads/:threadId/messages", requir
   }
 });
 
-/**
- * ADMIN: send group message (creates group thread if missing)
- * POST /api/clubs/:clubSlug/club/messages/groups/:groupId/messages
- * Body: { body }
- */
 app.post("/api/clubs/:clubSlug/club/messages/groups/:groupId/messages", requireSession, requireClubStaff, (req, res) => {
   try {
     const clubSlug = req.params.clubSlug;

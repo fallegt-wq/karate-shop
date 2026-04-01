@@ -23,10 +23,23 @@ export function getSqliteDb() {
   return _db;
 }
 
-// Handy shared db handle (used by repos/queries)
 export const db = getSqliteDb();
 
-// Keyrir schema ef töflur eru ekki til
+function addColumnIfMissing(db, tableName, columnName, ddl) {
+  try {
+    const cols = db
+      .prepare(`PRAGMA table_info(${tableName})`)
+      .all()
+      .map((c) => String(c.name || ""));
+
+    if (!cols.includes(columnName)) {
+      db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${ddl}`);
+    }
+  } catch {
+    // ignore migration errors
+  }
+}
+
 export function initIðkendaSchema() {
   const db = getSqliteDb();
 
@@ -87,7 +100,7 @@ export function initIðkendaSchema() {
       enrollment_id INTEGER,
       title TEXT NOT NULL,
       amount_isk INTEGER NOT NULL,
-      status TEXT NOT NULL DEFAULT 'unpaid', -- unpaid|paid|void
+      status TEXT NOT NULL DEFAULT 'unpaid',
       due_date TEXT,
       paid_at TEXT,
       method TEXT,
@@ -107,6 +120,7 @@ export function initIðkendaSchema() {
       payment_status TEXT NOT NULL DEFAULT 'UNPAID',
       payment_provider TEXT,
       buyer_email TEXT,
+      total_amount INTEGER NOT NULL DEFAULT 0,
       body_json TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (club_id) REFERENCES clubs(id) ON DELETE CASCADE
@@ -146,10 +160,6 @@ export function initIðkendaSchema() {
       expires_at INTEGER
     );
 
-    /* ==========================
-       MESSAGES: staff directory + threads + messages
-       ========================== */
-
     CREATE TABLE IF NOT EXISTS club_staff (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       club_id INTEGER NOT NULL,
@@ -164,11 +174,11 @@ export function initIðkendaSchema() {
     CREATE TABLE IF NOT EXISTS message_threads (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       club_id INTEGER NOT NULL,
-      type TEXT NOT NULL, -- dm|group
-      user_email TEXT,    -- for dm
-      staff_email TEXT,   -- for dm
+      type TEXT NOT NULL,
+      user_email TEXT,
+      staff_email TEXT,
       subject TEXT,
-      group_id INTEGER,   -- for group
+      group_id INTEGER,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (club_id) REFERENCES clubs(id) ON DELETE CASCADE,
@@ -179,7 +189,7 @@ export function initIðkendaSchema() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       club_id INTEGER NOT NULL,
       thread_id INTEGER NOT NULL,
-      sender_type TEXT NOT NULL, -- user|staff
+      sender_type TEXT NOT NULL,
       sender_email TEXT NOT NULL,
       body TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -187,7 +197,6 @@ export function initIðkendaSchema() {
       FOREIGN KEY (thread_id) REFERENCES message_threads(id) ON DELETE CASCADE
     );
 
-    /* Indexes */
     CREATE INDEX IF NOT EXISTS idx_groups_club ON groups(club_id);
     CREATE INDEX IF NOT EXISTS idx_athletes_club ON athletes(club_id);
     CREATE INDEX IF NOT EXISTS idx_enrollments_active ON enrollments(club_id, athlete_id, end_date);
@@ -202,9 +211,6 @@ export function initIðkendaSchema() {
     CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires ON auth_sessions(expires_at);
   `);
 
-  /* ==========================
-     MIGRATIONS: clubs (branding/template)
-     ========================== */
   try {
     const clubCols = db
       .prepare("PRAGMA table_info(clubs)")
@@ -227,37 +233,20 @@ export function initIðkendaSchema() {
     // ignore
   }
 
-  /* ==========================
-     SEED: ensure demo clubs exist (INSERT IF MISSING)
-     ========================== */
   ensureDemoClubs(db);
 
-  /* ==========================
-     MIGRATIONS: orders (keep your existing logic)
-     ========================== */
   try {
-    const cols = db
-      .prepare("PRAGMA table_info(orders)")
-      .all()
-      .map((c) => String(c.name || ""));
+    addColumnIfMissing(db, "orders", "club_id", "club_id INTEGER");
+    addColumnIfMissing(db, "orders", "club_slug", "club_slug TEXT");
+    addColumnIfMissing(db, "orders", "order_id", "order_id TEXT");
+    addColumnIfMissing(db, "orders", "status", "status TEXT DEFAULT 'NEW'");
+    addColumnIfMissing(db, "orders", "payment_status", "payment_status TEXT DEFAULT 'UNPAID'");
+    addColumnIfMissing(db, "orders", "payment_provider", "payment_provider TEXT");
+    addColumnIfMissing(db, "orders", "buyer_email", "buyer_email TEXT");
+    addColumnIfMissing(db, "orders", "total_amount", "total_amount INTEGER NOT NULL DEFAULT 0");
+    addColumnIfMissing(db, "orders", "body_json", "body_json TEXT");
+    addColumnIfMissing(db, "orders", "created_at", "created_at TEXT DEFAULT (datetime('now'))");
 
-    function addCol(name, ddl) {
-      if (!cols.includes(name)) {
-        db.exec(`ALTER TABLE orders ADD COLUMN ${ddl}`);
-      }
-    }
-
-    addCol("club_id", "club_id INTEGER");
-    addCol("club_slug", "club_slug TEXT");
-    addCol("order_id", "order_id TEXT");
-    addCol("status", "status TEXT DEFAULT 'NEW'");
-    addCol("payment_status", "payment_status TEXT DEFAULT 'UNPAID'");
-    addCol("payment_provider", "payment_provider TEXT");
-    addCol("buyer_email", "buyer_email TEXT");
-    addCol("body_json", "body_json TEXT");
-    addCol("created_at", "created_at TEXT DEFAULT (datetime('now'))");
-
-    // Ensure clubs exist for any legacy orders that only have club_slug
     db.exec(`
       INSERT INTO clubs (slug, name)
       SELECT DISTINCT o.club_slug, o.club_slug
@@ -266,23 +255,31 @@ export function initIðkendaSchema() {
       WHERE o.club_slug IS NOT NULL AND c.id IS NULL;
     `);
 
-    // Backfill club_id from club_slug if possible
-    if (cols.includes("club_id") && cols.includes("club_slug")) {
-      db.exec(`
-        UPDATE orders
-        SET club_id = (
-          SELECT id FROM clubs WHERE clubs.slug = orders.club_slug
-        )
-        WHERE club_id IS NULL AND club_slug IS NOT NULL
-      `);
-    }
+    db.exec(`
+      UPDATE orders
+      SET club_id = (
+        SELECT id FROM clubs WHERE clubs.slug = orders.club_slug
+      )
+      WHERE club_id IS NULL AND club_slug IS NOT NULL
+    `);
   } catch {
     // ignore
   }
 
-  // Create index after ensuring columns exist
   try {
     db.exec("CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders(club_id, buyer_email)");
+  } catch {
+    // ignore
+  }
+
+  try {
+    db.exec("CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id)");
+  } catch {
+    // ignore
+  }
+
+  try {
+    db.exec("CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders(club_id, payment_status)");
   } catch {
     // ignore
   }
@@ -291,10 +288,6 @@ export function initIðkendaSchema() {
 }
 
 function ensureDemoClubs(db) {
-  const exists = db.prepare("SELECT 1 FROM clubs WHERE slug = ?").get.bind(
-    db.prepare("SELECT 1 FROM clubs WHERE slug = ?")
-  );
-
   const insert = db.prepare(`
     INSERT INTO clubs (slug, name, template_id, logo_text, primary_color, text_color, accent_color, hero_image)
     VALUES (@slug, @name, @template_id, @logo_text, @primary_color, @text_color, @accent_color, @hero_image)
@@ -342,7 +335,6 @@ function ensureDemoClubs(db) {
   }
 }
 
-// tryggir að club sé til í clubs töflu og skilar club row
 export function ensureClubBySlug(clubSlug) {
   const db = getSqliteDb();
   const slug = String(clubSlug || "").trim().toLowerCase();
@@ -361,10 +353,6 @@ export function ensureClubBySlug(clubSlug) {
 
   return club;
 }
-
-/* ==========================
-   PUBLIC club helpers (for frontend templates)
-   ========================== */
 
 export function getClubPublicBySlug(clubSlug) {
   const slug = String(clubSlug || "").trim().toLowerCase();

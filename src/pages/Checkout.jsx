@@ -325,7 +325,13 @@ export default function Checkout() {
 
       clear();
       setSuccessMessage("Greiðsla skráð og skráning móttekin.");
-      navigate(`/c/${clubSlug}/account/orders`);
+      navigate(`/c/${clubSlug}/registration/success`, {
+  state: {
+    fromCheckout: true,
+    buyerName: buyerName.trim(),
+    buyerEmail: buyerEmail.trim(),
+  },
+});
     } catch (e) {
       setSubmitError(e?.message || "Mistókst að senda checkout");
     } finally {

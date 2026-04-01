@@ -205,14 +205,12 @@ export default function App() {
           path="/c/:clubSlug/registration/success"
           element={
             <RouteShell>
-              <RequireSession>
-                <ErrorBoundary>
+                              <ErrorBoundary>
                   <SuspenseWrap label="Registration Success">
                     <LazyRegistrationSuccessPage />
                   </SuspenseWrap>
                 </ErrorBoundary>
-              </RequireSession>
-            </RouteShell>
+                          </RouteShell>
           }
         />
 

@@ -604,7 +604,7 @@ app.post("/api/clubs/:clubSlug/orders", async (req, res) => {
   }
 });
 
-app.post("/api/clubs/:clubSlug/checkout", requireSession, async (req, res) => {
+app.post("/api/clubs/:clubSlug/checkout/stripe", async (req, res) => {
   try {
     if (!stripe) {
       return res.status(503).json({
@@ -613,35 +613,35 @@ app.post("/api/clubs/:clubSlug/checkout", requireSession, async (req, res) => {
       });
     }
 
-    const amount = Number(req.body?.amount || 0);
-    const description = String(req.body?.description || "Payment").trim();
-    const buyerEmail = String(req.user?.email || "").trim().toLowerCase();
+    const clubSlug = String(req.params.clubSlug || "").trim().toLowerCase();
+    const payload = req.body || {};
+    const buyerEmail = String(payload?.buyer?.email || "").trim().toLowerCase();
+    const buyerName = String(payload?.buyer?.name || "").trim();
+    const totalAmount = Number(payload?.totals?.total || 0);
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return res.status(400).json({ error: "BAD_REQUEST", message: "Invalid amount" });
+    if (!buyerEmail || !buyerEmail.includes("@")) {
+      return res.status(400).json({
+        error: "BAD_REQUEST",
+        message: "Buyer email is required",
+      });
     }
 
-    if (!buyerEmail) {
-      return res.status(400).json({ error: "BAD_REQUEST", message: "Missing user email" });
+    if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+      return res.status(400).json({
+        error: "BAD_REQUEST",
+        message: "Invalid total amount",
+      });
     }
 
-    const order = await createOrder(
-      req.params.clubSlug,
-      {
-        item_summary: description,
-        amount,
-        total_amount: amount,
-        currency: "isk",
-        source: "stripe_checkout",
-      },
-      buyerEmail
-    );
+    const order = await createOrder(clubSlug, payload, buyerEmail);
 
-    const successUrl = `${FRONTEND_URL}/c/${req.params.clubSlug}/portal/payments?success=true`;
-    const cancelUrl = `${FRONTEND_URL}/c/${req.params.clubSlug}/portal/payments?cancelled=true`;
+    const successUrl =
+      `${FRONTEND_URL}/c/${clubSlug}/registration/success?orderId=${encodeURIComponent(order.order_id)}`;
+
+    const cancelUrl =
+      `${FRONTEND_URL}/c/${clubSlug}/checkout?cancelled=true`;
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
       mode: "payment",
       customer_email: buyerEmail,
       line_items: [
@@ -649,9 +649,11 @@ app.post("/api/clubs/:clubSlug/checkout", requireSession, async (req, res) => {
           price_data: {
             currency: "isk",
             product_data: {
-              name: description || "Payment",
+              name: buyerName
+                ? `Skráning - ${buyerName}`
+                : "Skráning",
             },
-            unit_amount: Math.round(amount * 100),
+            unit_amount: Math.round(totalAmount * 100),
           },
           quantity: 1,
         },
@@ -660,13 +662,20 @@ app.post("/api/clubs/:clubSlug/checkout", requireSession, async (req, res) => {
       cancel_url: cancelUrl,
       metadata: {
         orderId: String(order.order_id),
+        clubSlug,
       },
     });
 
-    res.json({ url: session.url, orderId: order.order_id });
+    res.json({
+      url: session.url,
+      orderId: order.order_id,
+    });
   } catch (err) {
     console.error("Stripe checkout error", err);
-    res.status(500).json({ error: "STRIPE_ERROR", message: "Stripe error" });
+    res.status(500).json({
+      error: "STRIPE_ERROR",
+      message: "Stripe error",
+    });
   }
 });
 

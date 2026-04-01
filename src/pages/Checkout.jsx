@@ -3,7 +3,7 @@ import React, { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import ClubShell from "../components/layout/ClubShell";
-import { createOrderApi } from "../api/orders";
+import { createOrderApi, markOrderPaid } from "../api/orders";
 
 function Field({ label, children, hint }) {
   return (
@@ -37,6 +37,19 @@ function SummaryRow({ left, right }) {
   );
 }
 
+function formatISK(value) {
+  const amount = Number(value || 0);
+  try {
+    return new Intl.NumberFormat("is-IS", {
+      style: "currency",
+      currency: "ISK",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `${amount} kr.`;
+  }
+}
+
 // YYYY-MM-DD -> birthYear (safe)
 function birthYearFromIso(iso) {
   if (!iso || typeof iso !== "string") return null;
@@ -60,14 +73,27 @@ function isEligibleByYearRule(isoDob, currentYear) {
   return { ok: true, reason: "ok", birthYear: by };
 }
 
+function toRegistrationPayload(item, form) {
+  return {
+    cartId: item.cartId,
+    productId: item.id,
+    productName: item.name,
+    athleteName: String(form?.athleteName || "").trim(),
+    athleteDob: String(form?.athleteDob || "").trim(),
+    guardianName: String(form?.guardianName || "").trim(),
+    notes: String(form?.notes || "").trim(),
+    kennitala: String(form?.kennitala || "").trim(),
+  };
+}
+
 export default function Checkout() {
   const { clubSlug } = useParams();
   const navigate = useNavigate();
-
   const { items, remove, total, clear } = useCart();
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Purchaser
   const [buyerName, setBuyerName] = useState("");
@@ -77,6 +103,7 @@ export default function Checkout() {
 
   // Registration forms per cart item (keyed by cartId)
   const [regForms, setRegForms] = useState({});
+
   function updateReg(cartId, patch) {
     setRegForms((prev) => ({
       ...prev,
@@ -90,18 +117,17 @@ export default function Checkout() {
   const [grantAmount, setGrantAmount] = useState(0);
   const [grantNote, setGrantNote] = useState("");
 
-  // Rafrænar skilríki (demo)
+  // Rafræn skilríki (demo)
   const [loginAs, setLoginAs] = useState("GUARDIAN"); // "GUARDIAN" | "PARTICIPANT"
   const [eidVerified, setEidVerified] = useState(false);
 
-  // Items
   const registrationItems = useMemo(
-    () => items.filter((x) => x.type === "REGISTRATION"),
+    () => items.filter((x) => String(x.type || "").toUpperCase() === "REGISTRATION"),
     [items]
   );
+
   const hasRegistration = registrationItems.length > 0;
 
-  // Eligible for grant = REGISTRATION + leisureGrantEligible + durationWeeks >= 8
   const eligibleGrantItems = useMemo(() => {
     return registrationItems.filter((x) => {
       const weeks = Number(x.durationWeeks || 0);
@@ -125,7 +151,6 @@ export default function Checkout() {
     return Math.max(0, Number(total || 0) + Number(fee || 0) - appliedGrant);
   }, [total, fee, appliedGrant]);
 
-  // YEAR-BASED age rule
   const currentYear = new Date().getFullYear();
 
   const grantAgeCheck = useMemo(() => {
@@ -164,7 +189,7 @@ export default function Checkout() {
         ok: false,
         needsParticipantLogin: false,
         message:
-          "Enginn iðkandi uppfyllir aldursskilyrði frístundastyrks (gildir á árinu sem barnið verður 6 ára til áramóta þess árs sem það verður 18 ára).",
+          "Enginn iðkandi uppfyllir aldursskilyrði frístundastyrks.",
       };
     }
 
@@ -182,7 +207,6 @@ export default function Checkout() {
     return true;
   }, [useGrant, grantAgeCheck, loginAs]);
 
-  // Validation
   const canSubmit = useMemo(() => {
     if (!items.length) return false;
     if (!agreeTerms) return false;
@@ -192,7 +216,6 @@ export default function Checkout() {
       if (eligibleSubtotal <= 0) return false;
       if (appliedGrant <= 0) return false;
       if (!municipality.trim()) return false;
-
       if (!grantAgeCheck.ok) return false;
       if (!eidVerified) return false;
       if (!loginRequirementOk) return false;
@@ -203,6 +226,7 @@ export default function Checkout() {
     for (const p of registrationItems) {
       const schema = p.registration || {};
       const f = regForms[p.cartId] || {};
+
       if (schema.requiresAthleteName && !String(f.athleteName || "").trim()) return false;
       if (schema.requiresAthleteDob && !String(f.athleteDob || "").trim()) return false;
       if (schema.requiresGuardian && !String(f.guardianName || "").trim()) return false;
@@ -228,8 +252,7 @@ export default function Checkout() {
   ]);
 
   async function submitOrder() {
-    if (submitting) return;
-    if (!canSubmit) return;
+    if (submitting || !canSubmit) return;
 
     const grantStatus = !useGrant
       ? "EKKI_OSKAD"
@@ -237,35 +260,29 @@ export default function Checkout() {
       ? "STADFEST_MED_RAFRAENUM_SKILRIKJUM_DEMO"
       : "OSKAD_ENN_EKKI_STADFEST";
 
-    const orderPayload = {
-      // server will assign id + createdAt (we can still send, but not required)
-      clubSlug,
+    const registrationPayload = registrationItems.map((item) =>
+      toRegistrationPayload(item, regForms[item.cartId] || {})
+    );
 
+    const orderPayload = {
+      clubSlug,
       buyer: {
         name: buyerName.trim(),
         email: buyerEmail.trim(),
         phone: buyerPhone.trim(),
       },
-
-      items: items.map((p) => ({
-        cartId: p.cartId,
-        productId: p.id,
-        type: p.type || "MERCH",
-        name: p.name,
-        brand: p.brand,
-        price: Number(p.price) || 0,
-        category: p.category,
-        leisureGrantEligible: p.leisureGrantEligible === true,
-        durationWeeks: p.durationWeeks ?? null,
+      items: items.map((item) => ({
+        cartId: item.cartId,
+        productId: item.id,
+        type: item.type || "MERCH",
+        name: item.name,
+        brand: item.brand,
+        price: Number(item.price) || 0,
+        category: item.category || null,
+        leisureGrantEligible: item.leisureGrantEligible === true,
+        durationWeeks: item.durationWeeks ?? null,
       })),
-
-      registrations: registrationItems.map((p) => ({
-        cartId: p.cartId,
-        productId: p.id,
-        productName: p.name,
-        ...(regForms[p.cartId] || {}),
-      })),
-
+      registrations: registrationPayload,
       fristundastyrkur: {
         requested: useGrant,
         municipality: useGrant ? municipality : "",
@@ -273,42 +290,44 @@ export default function Checkout() {
         appliedAmount: appliedGrant,
         note: useGrant ? grantNote : "",
         status: grantStatus,
-
         policy: {
           minWeeks: 8,
           ageRule: "YEAR_BASED_6_TO_18",
           currentYear,
           requiresParticipantLoginWhen18: true,
         },
-
         eid: {
           verified: useGrant ? eidVerified : false,
           loginAs: useGrant ? loginAs : "",
         },
       },
-
       totals: {
         subtotal: Number(total || 0),
         fee,
         fristundastyrkurDiscount: appliedGrant,
         total: grandTotal,
       },
-
       payment: {
-        status: "DEMO_NOT_PAID",
+        status: "UNPAID",
+        provider: "demo",
       },
     };
 
     try {
       setSubmitError("");
+      setSuccessMessage("");
       setSubmitting(true);
 
-      const created = await createOrderApi(clubSlug, orderPayload);
+      const createdOrder = await createOrderApi(clubSlug, orderPayload);
+
+      // Demo: merkja strax greitt svo backend vinni úr order
+      await markOrderPaid(clubSlug, createdOrder.order_id, "demo");
 
       clear();
+      setSuccessMessage("Greiðsla skráð og skráning móttekin.");
       navigate(`/c/${clubSlug}/account/orders`);
     } catch (e) {
-      setSubmitError(e?.message || "Failed to submit order");
+      setSubmitError(e?.message || "Mistókst að senda checkout");
     } finally {
       setSubmitting(false);
     }
@@ -319,29 +338,27 @@ export default function Checkout() {
       clubSlug={clubSlug}
       cartCount={items.length}
       title="Checkout"
-      subtitle="Order & registration"
+      subtitle="Greiðsla og skráning"
       rightSlot={
         <Link
           to={`/c/${clubSlug}`}
           className="hidden md:inline-flex items-center rounded-2xl border bg-white px-4 py-2 text-sm font-semibold hover:bg-zinc-50"
         >
-          ← Back to shop
+          ← Til baka
         </Link>
       }
     >
-      <div className="md:hidden mb-4">
+      <div className="mb-4 md:hidden">
         <Link
           to={`/c/${clubSlug}`}
           className="inline-flex items-center rounded-2xl border bg-white px-4 py-2 text-sm font-semibold hover:bg-zinc-50"
         >
-          ← Back to shop
+          ← Til baka
         </Link>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* LEFT */}
-        <section className="lg:col-span-7 space-y-6">
-          {/* Purchaser */}
+        <section className="space-y-6 lg:col-span-7">
           <div className="rounded-2xl border bg-white p-6 shadow-sm">
             <div className="text-xs uppercase tracking-wider text-zinc-500">Kaupandi</div>
             <div className="mt-1 text-lg font-semibold text-zinc-900">Upplýsingar</div>
@@ -378,7 +395,6 @@ export default function Checkout() {
             </div>
           </div>
 
-          {/* Registration */}
           {hasRegistration ? (
             <div className="rounded-2xl border bg-white p-6 shadow-sm">
               <div className="text-xs uppercase tracking-wider text-zinc-500">Skráning</div>
@@ -409,7 +425,7 @@ export default function Checkout() {
                           <div className="text-xs uppercase tracking-wider text-zinc-500">
                             Vara {idx + 1}
                           </div>
-                          <div className="font-semibold text-zinc-900 truncate">{p.name}</div>
+                          <div className="truncate font-semibold text-zinc-900">{p.name}</div>
                           <div className="mt-1 text-xs text-zinc-500">
                             Vikur: {Number(p.durationWeeks || 0)}
                             {p.leisureGrantEligible && Number(p.durationWeeks || 0) >= 8
@@ -430,14 +446,16 @@ export default function Checkout() {
 
                               {res.ok && is18Year ? (
                                 <div className="mt-1 text-xs font-semibold text-red-700">
-                                  Ath: Iðkandi er 18 ára á þessu ári → þarf að skrá sig inn sjálfur með sínum rafrænu skilríkjum.
+                                  Ath: Iðkandi er 18 ára á þessu ári og þarf þá að skrá sig inn sjálfur.
                                 </div>
                               ) : null}
                             </div>
                           ) : null}
                         </div>
 
-                        <div className="shrink-0 font-semibold text-red-700">${p.price}</div>
+                        <div className="shrink-0 font-semibold text-red-700">
+                          {formatISK(p.price)}
+                        </div>
                       </div>
 
                       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -445,7 +463,9 @@ export default function Checkout() {
                           <Field label="Nafn iðkanda">
                             <Input
                               value={f.athleteName || ""}
-                              onChange={(e) => updateReg(p.cartId, { athleteName: e.target.value })}
+                              onChange={(e) =>
+                                updateReg(p.cartId, { athleteName: e.target.value })
+                              }
                             />
                           </Field>
                         ) : null}
@@ -454,18 +474,32 @@ export default function Checkout() {
                           <Field label="Fæðingardagur" hint="YYYY-MM-DD">
                             <Input
                               value={f.athleteDob || ""}
-                              onChange={(e) => updateReg(p.cartId, { athleteDob: e.target.value })}
+                              onChange={(e) =>
+                                updateReg(p.cartId, { athleteDob: e.target.value })
+                              }
                               placeholder="YYYY-MM-DD"
                             />
                           </Field>
                         ) : null}
+
+                        <Field label="Kennitala (valfrjálst)">
+                          <Input
+                            value={f.kennitala || ""}
+                            onChange={(e) =>
+                              updateReg(p.cartId, { kennitala: e.target.value })
+                            }
+                            placeholder="t.d. 123456-7890"
+                          />
+                        </Field>
 
                         {schema.requiresGuardian ? (
                           <div className="sm:col-span-2">
                             <Field label="Forráðamaður">
                               <Input
                                 value={f.guardianName || ""}
-                                onChange={(e) => updateReg(p.cartId, { guardianName: e.target.value })}
+                                onChange={(e) =>
+                                  updateReg(p.cartId, { guardianName: e.target.value })
+                                }
                               />
                             </Field>
                           </div>
@@ -473,7 +507,7 @@ export default function Checkout() {
 
                         {schema.requiresNotes ? (
                           <div className="sm:col-span-2">
-                            <Field label="Athugasemdir (skyldu)">
+                            <Field label="Athugasemdir">
                               <Input
                                 value={f.notes || ""}
                                 onChange={(e) => updateReg(p.cartId, { notes: e.target.value })}
@@ -489,7 +523,6 @@ export default function Checkout() {
             </div>
           ) : null}
 
-          {/* Frístundastyrkur */}
           <div className="rounded-2xl border bg-white p-6 shadow-sm">
             <div className="text-xs uppercase tracking-wider text-zinc-500">Sveitarfélag</div>
             <div className="mt-1 text-lg font-semibold text-zinc-900">Frístundastyrkur</div>
@@ -510,22 +543,25 @@ export default function Checkout() {
                       setLoginAs("GUARDIAN");
                       return;
                     }
-                    if (checked && eligibleSubtotal > 0) setGrantAmount(eligibleSubtotal);
+
+                    if (eligibleSubtotal > 0) {
+                      setGrantAmount(eligibleSubtotal);
+                    }
                   }}
                   className="mt-1"
                 />
                 <div className="min-w-0">
                   <div className="text-sm font-semibold text-zinc-900">
-                    Nota frístundastyrk á styrkhæfar æfingar/námskeið
+                    Nota frístundastyrk
                   </div>
                   <div className="text-xs text-zinc-500">
-                    Gildir fyrir training ≥ 8 vikur. Aldursskilyrði er ársbundið: frá 1. janúar á árinu sem barnið verður 6 ára til áramóta ársins sem það verður 18 ára.
+                    Gildir fyrir styrkhæf námskeið sem eru 8 vikur eða lengri.
                   </div>
                 </div>
               </label>
 
               <div className="rounded-2xl bg-zinc-50 p-4 text-sm text-zinc-700">
-                Styrkhæft samtals: <span className="font-semibold">${eligibleSubtotal}</span>
+                Styrkhæft samtals: <span className="font-semibold">{formatISK(eligibleSubtotal)}</span>
               </div>
 
               {useGrant ? (
@@ -552,7 +588,10 @@ export default function Checkout() {
                       </select>
                     </Field>
 
-                    <Field label="Upphæð" hint={`Hámark: $${eligibleSubtotal}`}>
+                    <Field
+                      label="Upphæð"
+                      hint={`Hámark: ${formatISK(eligibleSubtotal)}`}
+                    >
                       <div className="flex gap-2">
                         <Input
                           type="number"
@@ -576,17 +615,16 @@ export default function Checkout() {
                         <Input
                           value={grantNote}
                           onChange={(e) => setGrantNote(e.target.value)}
-                          placeholder="t.d. nafn barns / tilvísun (demo)"
+                          placeholder="t.d. skýring eða tilvísun"
                         />
                       </Field>
                     </div>
                   </div>
 
-                  {/* Rafræn skilríki */}
                   <div className="mt-4 rounded-2xl border bg-white p-4">
                     <div className="text-sm font-semibold text-zinc-900">Rafræn skilríki</div>
                     <div className="mt-2 text-xs text-zinc-500">
-                      Ef iðkandi er 18 ára á þessu ári (skv. aldursskilyrði), þá þarf iðkandinn að skrá sig inn sjálfur.
+                      Ef iðkandi er 18 ára á þessu ári þarf iðkandinn að skrá sig inn sjálfur.
                     </div>
 
                     <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -599,7 +637,7 @@ export default function Checkout() {
                         className={[
                           "rounded-2xl border px-4 py-3 text-sm font-semibold",
                           loginAs === "GUARDIAN"
-                            ? "bg-zinc-900 text-white border-zinc-900"
+                            ? "border-zinc-900 bg-zinc-900 text-white"
                             : "bg-white hover:bg-zinc-50",
                         ].join(" ")}
                       >
@@ -615,7 +653,7 @@ export default function Checkout() {
                         className={[
                           "rounded-2xl border px-4 py-3 text-sm font-semibold",
                           loginAs === "PARTICIPANT"
-                            ? "bg-zinc-900 text-white border-zinc-900"
+                            ? "border-zinc-900 bg-zinc-900 text-white"
                             : "bg-white hover:bg-zinc-50",
                         ].join(" ")}
                       >
@@ -625,7 +663,7 @@ export default function Checkout() {
 
                     {grantAgeCheck.needsParticipantLogin && loginAs !== "PARTICIPANT" ? (
                       <div className="mt-3 rounded-2xl border bg-red-50 p-3 text-xs font-semibold text-red-700">
-                        Veldu “Iðkandi (18 ára)” til að halda áfram með frístundastyrk.
+                        Veldu “Iðkandi (18 ára)” til að halda áfram.
                       </div>
                     ) : null}
 
@@ -648,7 +686,6 @@ export default function Checkout() {
             </div>
           </div>
 
-          {/* Consent */}
           <div className="rounded-2xl border bg-white p-6 shadow-sm">
             <div className="text-xs uppercase tracking-wider text-zinc-500">Samþykki</div>
             <div className="mt-1 text-lg font-semibold text-zinc-900">Skilmálar</div>
@@ -661,16 +698,19 @@ export default function Checkout() {
                 className="mt-1"
               />
               <div>
-                <div className="text-sm font-semibold text-zinc-900">Ég samþykki skilmála</div>
-                <div className="text-xs text-zinc-500">(Demo) Seinna tengjum við skilmála félags.</div>
+                <div className="text-sm font-semibold text-zinc-900">
+                  Ég samþykki skilmála
+                </div>
+                <div className="text-xs text-zinc-500">
+                  Seinna tengjum við raunverulega skilmála félags.
+                </div>
               </div>
             </label>
           </div>
         </section>
 
-        {/* RIGHT */}
         <aside className="lg:col-span-5">
-          <div className="lg:sticky lg:top-24 space-y-4">
+          <div className="space-y-4 lg:sticky lg:top-24">
             <div className="rounded-2xl border bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
@@ -703,7 +743,9 @@ export default function Checkout() {
                             {p.brand || p.type}
                           </div>
                           <div className="truncate font-semibold text-zinc-900">{p.name}</div>
-                          <div className="mt-1 text-sm font-semibold text-zinc-900">${p.price}</div>
+                          <div className="mt-1 text-sm font-semibold text-zinc-900">
+                            {formatISK(p.price)}
+                          </div>
                         </div>
 
                         <button
@@ -718,19 +760,21 @@ export default function Checkout() {
                   </div>
 
                   <div className="mt-4 space-y-2 border-t pt-4">
-                    <SummaryRow left="Samtals" right={`$${total}`} />
-                    <SummaryRow left="Gjöld" right={`$${fee}`} />
+                    <SummaryRow left="Samtals" right={formatISK(total)} />
+                    <SummaryRow left="Gjöld" right={formatISK(fee)} />
                     {useGrant && appliedGrant > 0 ? (
                       <SummaryRow
                         left={`Frístundastyrkur (${municipality})`}
-                        right={`- $${appliedGrant}`}
+                        right={`- ${formatISK(appliedGrant)}`}
                       />
                     ) : null}
 
                     <div className="pt-2">
                       <div className="flex items-center justify-between">
                         <div className="text-base font-semibold text-zinc-900">Greiða</div>
-                        <div className="text-base font-semibold text-red-700">${grandTotal}</div>
+                        <div className="text-base font-semibold text-red-700">
+                          {formatISK(grandTotal)}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -742,23 +786,29 @@ export default function Checkout() {
                       "mt-5 w-full rounded-2xl py-3 text-sm font-semibold text-white transition",
                       canSubmit && !submitting
                         ? "bg-red-700 hover:bg-red-800 active:scale-[0.99]"
-                        : "bg-zinc-300 cursor-not-allowed",
+                        : "cursor-not-allowed bg-zinc-300",
                     ].join(" ")}
                     onClick={(e) => {
                       e.preventDefault();
                       submitOrder();
                     }}
                   >
-                    {submitting ? "Sendi..." : "Staðfesta og senda"}
+                    {submitting ? "Sendi..." : "Greiða og klára skráningu"}
                   </button>
 
                   {submitError ? (
                     <div className="mt-3 text-xs font-semibold text-red-700">{submitError}</div>
                   ) : null}
 
+                  {successMessage ? (
+                    <div className="mt-3 text-xs font-semibold text-green-700">
+                      {successMessage}
+                    </div>
+                  ) : null}
+
                   {useGrant && !loginRequirementOk ? (
                     <div className="mt-3 text-xs font-semibold text-red-700">
-                      Þú þarft að velja rétta innskráningu (iðkandi ef 18 ára á þessu ári).
+                      Þú þarft að velja rétta innskráningu.
                     </div>
                   ) : null}
                 </>

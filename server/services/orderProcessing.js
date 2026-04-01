@@ -13,6 +13,7 @@ function safeJsonParse(value) {
 
 function splitName(fullName) {
   const raw = String(fullName || "").trim();
+
   if (!raw) {
     return { first_name: "Óþekkt", last_name: "Iðkandi" };
   }
@@ -48,6 +49,7 @@ function findAthleteByNationalId(clubSlug, nationalId) {
   const db = getSqliteDb();
   const club = ensureClubBySlug(clubSlug);
   const nid = normalizeNationalId(nationalId);
+
   if (!nid) return null;
 
   return db
@@ -124,6 +126,8 @@ function createOrFindAthlete({
 function createCourseRegistration({
   clubSlug,
   athleteId,
+  orderId,
+  paymentId,
   courseId,
   courseTitle,
   coursePrice,
@@ -136,26 +140,30 @@ function createCourseRegistration({
       INSERT INTO course_registrations (
         user_id,
         participant_id,
+        athlete_id,
         club_slug,
         course_id,
         course_title,
         course_price,
         status,
         payment_status,
-        athlete_id,
+        order_id,
+        payment_id,
         created_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, 'pending', 'unpaid', ?, datetime('now'))
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'unpaid', ?, ?, datetime('now'))
     `
     )
     .run(
       0,
-      0,
+      null,
+      Number(athleteId),
       String(clubSlug || "").trim().toLowerCase(),
       String(courseId || "").trim(),
       String(courseTitle || "").trim(),
       Number(coursePrice || 0),
-      Number(athleteId)
+      String(orderId || "").trim(),
+      paymentId != null ? Number(paymentId) : null
     );
 
   return db
@@ -205,10 +213,7 @@ function ensurePaid(order) {
 
 function ensureNotFulfilled(order) {
   const status = String(order?.status || "").toUpperCase();
-  if (status === "FULFILLED") {
-    return false;
-  }
-  return true;
+  return status !== "FULFILLED";
 }
 
 function mapPaymentTitle(item, registrationInput) {
@@ -221,28 +226,21 @@ function mapPaymentTitle(item, registrationInput) {
 }
 
 function mapCourseId(item, registrationInput) {
-  return (
-    registrationInput?.productId ||
-    item?.productId ||
-    item?.id ||
-    ""
-  );
+  return registrationInput?.productId || item?.productId || item?.id || "";
 }
 
 async function processRegistrationItem(clubSlug, order, item) {
   const orderBody = order?.body || {};
   const registrationInput = extractRegistrationInput(orderBody, item);
-  const buyerEmail =
-    order?.buyer_email || orderBody?.buyer?.email || null;
+  const buyerEmail = order?.buyer_email || orderBody?.buyer?.email || null;
 
   const athleteName = registrationInput?.athleteName;
-  const athleteDob = registrationInput?.athleteDob || registrationInput?.birthDate || null;
+  const athleteDob =
+    registrationInput?.athleteDob || registrationInput?.birthDate || null;
   const guardianName = registrationInput?.guardianName || "";
   const notes = registrationInput?.notes || "";
   const kennitala =
-    registrationInput?.kennitala ||
-    registrationInput?.athleteKennitala ||
-    null;
+    registrationInput?.kennitala || registrationInput?.athleteKennitala || null;
 
   if (!athleteName) {
     throw new Error("Registration item missing athleteName");
@@ -258,14 +256,6 @@ async function processRegistrationItem(clubSlug, order, item) {
     notes,
   });
 
-  const registration = createCourseRegistration({
-    clubSlug,
-    athleteId: athlete.id,
-    courseId: mapCourseId(item, registrationInput),
-    courseTitle: mapPaymentTitle(item, registrationInput),
-    coursePrice: Number(item?.price || 0),
-  });
-
   const payment = createPayment(clubSlug, {
     athlete_id: athlete.id,
     enrollment_id: null,
@@ -275,6 +265,7 @@ async function processRegistrationItem(clubSlug, order, item) {
   });
 
   const db = getSqliteDb();
+
   db.prepare(
     `
     UPDATE payments
@@ -289,6 +280,16 @@ async function processRegistrationItem(clubSlug, order, item) {
     String(order?.order_id || ""),
     Number(payment.id)
   );
+
+  const registration = createCourseRegistration({
+    clubSlug,
+    athleteId: athlete.id,
+    orderId: order?.order_id,
+    paymentId: payment.id,
+    courseId: mapCourseId(item, registrationInput),
+    courseTitle: mapPaymentTitle(item, registrationInput),
+    coursePrice: Number(item?.price || 0),
+  });
 
   const paidRegistration = markRegistrationPaid(registration.id);
 

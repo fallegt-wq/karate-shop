@@ -1,107 +1,64 @@
-import React from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
-
-function formatISK(value) {
-  return new Intl.NumberFormat('is-IS', {
-    style: 'currency',
-    currency: 'ISK',
-    maximumFractionDigits: 0,
-  }).format(value || 0);
-}
+import React from "react";
+import { Link, useLocation, useParams } from "react-router-dom";
 
 export default function RegistrationSuccessPage() {
-  const location = useLocation();
   const { clubSlug } = useParams();
+  const location = useLocation();
 
-  const course = location.state?.course || null;
-  const participant = location.state?.participant || null;
-  const orderSummary = location.state?.orderSummary || null;
-  const registration = location.state?.registration || null;
+  const state = location.state || {};
+
+  const buyerName = state?.buyerName || "";
+  const buyerEmail = state?.buyerEmail || "";
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-16">
-        <div className="bg-white border border-gray-200 rounded-3xl p-8 md:p-10">
-          <div className="w-16 h-16 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-3xl mb-6">
-            ✓
+        <div className="bg-white border border-gray-200 rounded-3xl p-8 text-center">
+          
+          {/* Success icon */}
+          <div className="mx-auto mb-6 h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
+            <span className="text-2xl">✅</span>
           </div>
 
-          <div className="text-sm font-semibold text-green-700 mb-2">
+          {/* Title */}
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">
             Skráning móttekin
-          </div>
-
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">
-            Takk fyrir skráninguna
           </h1>
 
-          <p className="text-gray-600 mb-8">
-            Skráningin hefur verið vistuð á réttan klúbb og á nú að birtast í admin skráningum. Næsta skref verður að tengja þetta flæði við raunverulega greiðslugátt.
+          {/* Subtitle */}
+          <p className="text-gray-600 mb-6">
+            Takk fyrir skráninguna
           </p>
 
-          <div className="rounded-2xl border border-gray-200 p-6 space-y-5 mb-8">
-            {registration && (
-              <div>
-                <div className="text-sm text-gray-500">Skráningarnúmer</div>
-                <div className="font-semibold text-gray-900 mt-1">
-                  #{registration.id}
-                </div>
-              </div>
-            )}
-
-            {participant && (
-              <div>
-                <div className="text-sm text-gray-500">Iðkandi</div>
-                <div className="font-semibold text-gray-900 mt-1">
-                  {participant.name}
-                </div>
-              </div>
-            )}
-
-            {course && (
-              <div>
-                <div className="text-sm text-gray-500">Námskeið</div>
-                <div className="font-semibold text-gray-900 mt-1">
-                  {course.title}
-                </div>
-              </div>
-            )}
-
-            {registration && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm text-gray-500">Staða</div>
-                  <div className="text-gray-900 mt-1">{registration.status}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Greiðslustaða</div>
-                  <div className="text-gray-900 mt-1">{registration.paymentStatus}</div>
-                </div>
-              </div>
-            )}
-
-            {orderSummary && (
-              <div className="pt-4 border-t border-gray-200 flex items-center justify-between">
-                <span className="text-gray-600">Samtals</span>
-                <span className="text-2xl font-bold text-red-600">
-                  {formatISK(orderSummary.total)}
-                </span>
-              </div>
-            )}
+          {/* Main message */}
+          <div className="rounded-2xl bg-gray-50 p-5 text-sm text-gray-700">
+            Greiðslan hefur verið skráð og staðfest.
+            <br />
+            Hún ætti nú að birtast í kerfinu hjá félaginu.
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          {/* Buyer info */}
+          {(buyerName || buyerEmail) && (
+            <div className="mt-6 text-sm text-gray-600">
+              {buyerName && <div>Nafn: {buyerName}</div>}
+              {buyerEmail && <div>Netfang: {buyerEmail}</div>}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               to={`/c/${clubSlug}`}
-              className="inline-flex items-center justify-center rounded-xl bg-red-700 hover:bg-red-800 text-white font-semibold px-5 py-3"
+              className="inline-flex items-center justify-center rounded-2xl bg-red-700 px-5 py-3 text-sm font-semibold text-white hover:bg-red-800"
             >
-              Til baka í yfirlit
+              Til baka í verslun
             </Link>
 
             <Link
-              to={`/c/${clubSlug}/account`}
-              className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 font-semibold px-5 py-3"
+              to={`/c/${clubSlug}/account/orders`}
+              className="inline-flex items-center justify-center rounded-2xl border bg-white px-5 py-3 text-sm font-semibold hover:bg-gray-50"
             >
-              Fara í Mitt svæði
+              Skoða pantanir
             </Link>
           </div>
         </div>

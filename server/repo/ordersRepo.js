@@ -61,10 +61,20 @@ function extractTotalAmount(body) {
   return 0;
 }
 
+function hasColumn(db, tableName, columnName) {
+  try {
+    const cols = db.prepare(`PRAGMA table_info(${tableName})`).all();
+    return cols.some((c) => String(c.name || "") === columnName);
+  } catch {
+    return false;
+  }
+}
+
 function mapOrderRow(row) {
   if (!row) return null;
 
-  const body = safeJsonParse(row.body_json) || {};
+  const rawBody = row.body_json ?? row.order_json ?? null;
+  const body = safeJsonParse(rawBody) || {};
 
   return {
     id: row.id,
@@ -103,23 +113,22 @@ export async function createOrder(clubSlug, body = {}, sessionBuyerEmail = null)
     },
   };
 
-  db.prepare(
-    `
-    INSERT INTO orders (
-      club_id,
-      club_slug,
-      order_id,
-      status,
-      payment_status,
-      payment_provider,
-      buyer_email,
-      total_amount,
-      body_json,
-      created_at
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-  `
-  ).run(
+  const bodyJson = safeJsonStringify(payload);
+
+  const orderHasTotalAmount = hasColumn(db, "orders", "total_amount");
+  const orderHasBodyJson = hasColumn(db, "orders", "body_json");
+  const orderHasOrderJson = hasColumn(db, "orders", "order_json");
+
+  const columns = [
+    "club_id",
+    "club_slug",
+    "order_id",
+    "status",
+    "payment_status",
+    "payment_provider",
+    "buyer_email",
+  ];
+  const values = [
     club.id,
     String(clubSlug || "").trim().toLowerCase(),
     orderId,
@@ -127,9 +136,38 @@ export async function createOrder(clubSlug, body = {}, sessionBuyerEmail = null)
     "UNPAID",
     null,
     buyerEmail,
-    totalAmount,
-    safeJsonStringify(payload)
-  );
+  ];
+  const placeholders = ["?", "?", "?", "?", "?", "?", "?"];
+
+  if (orderHasTotalAmount) {
+    columns.push("total_amount");
+    values.push(totalAmount);
+    placeholders.push("?");
+  }
+
+  if (orderHasBodyJson) {
+    columns.push("body_json");
+    values.push(bodyJson);
+    placeholders.push("?");
+  }
+
+  if (orderHasOrderJson) {
+    columns.push("order_json");
+    values.push(bodyJson);
+    placeholders.push("?");
+  }
+
+  columns.push("created_at");
+  placeholders.push("datetime('now')");
+
+  db.prepare(
+    `
+    INSERT INTO orders (
+      ${columns.join(", ")}
+    )
+    VALUES (${placeholders.join(", ")})
+  `
+  ).run(...values);
 
   const row = db
     .prepare(

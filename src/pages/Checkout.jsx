@@ -1,6 +1,6 @@
 // src/pages/Checkout.jsx
 import React, { useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import ClubShell from "../components/layout/ClubShell";
 import { createStripeCheckoutSession } from "../api/orders";
@@ -88,7 +88,6 @@ function toRegistrationPayload(item, form) {
 
 export default function Checkout() {
   const { clubSlug } = useParams();
-  const navigate = useNavigate();
   const { items, remove, total, clear } = useCart();
 
   const [submitting, setSubmitting] = useState(false);
@@ -307,10 +306,10 @@ export default function Checkout() {
         fristundastyrkurDiscount: appliedGrant,
         total: grandTotal,
       },
-      payment: {
-        status: "UNPAID",
-        provider: "demo",
-      },
+   payment: {
+  status: "UNPAID",
+  provider: "stripe",
+},
     };
 
     try {

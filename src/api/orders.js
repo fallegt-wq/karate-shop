@@ -35,10 +35,6 @@ async function httpJson(url, { method = "GET", headers = {}, body } = {}) {
    PUBLIC / CHECKOUT
    ========================== */
 
-/**
- * Create order (guest or logged-in).
- * If logged in, backend will attach buyer_email automatically.
- */
 export async function createOrder(clubSlug, payload) {
   return httpJson(`/api/clubs/${clubSlug}/orders`, {
     method: "POST",
@@ -46,11 +42,14 @@ export async function createOrder(clubSlug, payload) {
   });
 }
 
-/**
- * COMPAT ALIAS
- * Some UI imports createOrderApi; keep it working.
- */
 export const createOrderApi = createOrder;
+
+export async function createStripeCheckoutSession(clubSlug, payload) {
+  return httpJson(`/api/clubs/${clubSlug}/checkout/stripe`, {
+    method: "POST",
+    body: payload,
+  });
+}
 
 /* ==========================
    USER: MY ORDERS (requires session)

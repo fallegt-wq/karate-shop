@@ -1,64 +1,79 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
+import { getOrderPublic } from "../api/orders";
+
+function useQuery() {
+  return new URLSearchParams(useLocation().search);
+}
 
 export default function RegistrationSuccessPage() {
   const { clubSlug } = useParams();
-  const location = useLocation();
+  const query = useQuery();
 
-  const state = location.state || {};
+  const orderId = query.get("orderId");
 
-  const buyerName = state?.buyerName || "";
-  const buyerEmail = state?.buyerEmail || "";
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        if (!orderId) return;
+        const data = await getOrderPublic(clubSlug, orderId);
+        setOrder(data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+  }, [clubSlug, orderId]);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-3xl mx-auto px-4 md:px-6 py-16">
-        <div className="bg-white border border-gray-200 rounded-3xl p-8 text-center">
-          
-          {/* Success icon */}
-          <div className="mx-auto mb-6 h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-            <span className="text-2xl">✅</span>
-          </div>
+      <div className="max-w-3xl mx-auto px-4 py-16">
+        <div className="bg-white rounded-3xl p-8 text-center">
 
-          {/* Title */}
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">
-            Skráning móttekin
+          <div className="text-2xl mb-4">✅</div>
+
+          <h1 className="text-2xl font-bold mb-3">
+            Greiðsla staðfest
           </h1>
 
-          {/* Subtitle */}
-          <p className="text-gray-600 mb-6">
-            Takk fyrir skráninguna
-          </p>
+          {loading && <div>Sæki upplýsingar...</div>}
 
-          {/* Main message */}
-          <div className="rounded-2xl bg-gray-50 p-5 text-sm text-gray-700">
-            Greiðslan hefur verið skráð og staðfest.
-            <br />
-            Hún ætti nú að birtast í kerfinu hjá félaginu.
-          </div>
+          {order && (
+            <>
+              <div className="mt-4 text-sm text-gray-600">
+                <div>Pöntun: {order.order_id}</div>
+                <div>Netfang: {order.buyer_email}</div>
+                <div>
+                  Upphæð: {order.total_amount} kr.
+                </div>
+              </div>
 
-          {/* Buyer info */}
-          {(buyerName || buyerEmail) && (
-            <div className="mt-6 text-sm text-gray-600">
-              {buyerName && <div>Nafn: {buyerName}</div>}
-              {buyerEmail && <div>Netfang: {buyerEmail}</div>}
-            </div>
+              <div className="mt-6 text-left">
+                <div className="font-semibold mb-2">Skráningar:</div>
+                <ul className="space-y-2">
+                  {order.items?.map((i, idx) => (
+                    <li key={idx} className="border rounded p-2">
+                      {i.name} — {i.price} kr.
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
           )}
 
-          {/* Actions */}
-          <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              to={`/c/${clubSlug}`}
-              className="inline-flex items-center justify-center rounded-2xl bg-red-700 px-5 py-3 text-sm font-semibold text-white hover:bg-red-800"
-            >
-              Til baka í verslun
+          <div className="mt-8 flex gap-3 justify-center">
+            <Link to={`/c/${clubSlug}`} className="btn">
+              Til baka
             </Link>
 
-            <Link
-              to={`/c/${clubSlug}/account/orders`}
-              className="inline-flex items-center justify-center rounded-2xl border bg-white px-5 py-3 text-sm font-semibold hover:bg-gray-50"
-            >
-              Skoða pantanir
+            <Link to={`/c/${clubSlug}/account/orders`} className="btn-outline">
+              Pantanir
             </Link>
           </div>
         </div>

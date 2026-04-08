@@ -1,5 +1,3 @@
-import { sendEmail } from "../utils/email.js";
-
 // server/utils/email.js
 
 function escapeHtml(value) {
@@ -48,10 +46,9 @@ function buildOrderReceiptEmail(order) {
     };
   });
 
-  const subject =
-    clubSlug
-      ? `Staðfesting á skráningu - ${clubSlug}`
-      : "Staðfesting á skráningu";
+  const subject = clubSlug
+    ? `Staðfesting á skráningu - ${clubSlug}`
+    : "Staðfesting á skráningu";
 
   const greeting = buyerName ? `Sæl/l ${buyerName},` : "Sæl/l,";
 
@@ -82,11 +79,7 @@ function buildOrderReceiptEmail(order) {
             (line) => `
               <li style="margin:8px 0;">
                 <strong>${escapeHtml(line.itemName)}</strong>
-                ${
-                  line.athleteName
-                    ? ` - ${escapeHtml(line.athleteName)}`
-                    : ""
-                }
+                ${line.athleteName ? ` - ${escapeHtml(line.athleteName)}` : ""}
                 - ${escapeHtml(line.price)}
               </li>
             `
@@ -95,6 +88,10 @@ function buildOrderReceiptEmail(order) {
       </ul>
     `
     : `<p>Engar línur fundust í pöntun.</p>`;
+
+  const accountUrl = order?.club_slug
+    ? `${String(process.env.FRONTEND_URL || "").replace(/\/$/, "")}/c/${order.club_slug}/account/orders`
+    : "";
 
   const html = `
     <div style="font-family:Arial,sans-serif;color:#18181b;line-height:1.5;">
@@ -109,6 +106,18 @@ function buildOrderReceiptEmail(order) {
 
       <h3 style="margin:16px 0 8px;">Skráningar</h3>
       ${htmlItems}
+
+      ${
+        accountUrl
+          ? `
+            <p style="margin-top:20px;">
+              Þú getur skoðað pantanir hér:
+              <br />
+              <a href="${escapeHtml(accountUrl)}">${escapeHtml(accountUrl)}</a>
+            </p>
+          `
+          : ""
+      }
 
       <p style="margin-top:20px;">Takk fyrir skráninguna.</p>
     </div>
@@ -131,9 +140,7 @@ export async function sendOrderReceiptEmail(order) {
   }
 
   if (!apiKey || !fromEmail) {
-    console.log(
-      "[EMAIL] skipped: RESEND_API_KEY or EMAIL_FROM missing"
-    );
+    console.log("[EMAIL] skipped: RESEND_API_KEY or EMAIL_FROM missing");
     return {
       ok: false,
       skipped: true,
@@ -181,40 +188,4 @@ export async function sendOrderReceiptEmail(order) {
     provider: "resend",
     messageId: payload?.id || null,
   };
-}
-function buildOrderEmail(order, results) {
-  const items = order.body?.items || [];
-
-  const lines = items.map((item) => {
-    return `
-      <tr>
-        <td>${item.name}</td>
-        <td>${item.price} kr.</td>
-      </tr>
-    `;
-  }).join("");
-
-  return `
-    <h2>Skráning staðfest</h2>
-    <p>Takk fyrir skráninguna.</p>
-
-    <h3>Pöntun</h3>
-    <table border="1" cellpadding="8" cellspacing="0">
-      <tr>
-        <th>Námskeið</th>
-        <th>Verð</th>
-      </tr>
-      ${lines}
-    </table>
-
-    <p><strong>Samtals:</strong> ${order.total_amount} kr.</p>
-
-    <p>
-      Þú getur skoðað pantanir hér:
-      <br/>
-      <a href="${process.env.FRONTEND_URL}/c/${order.club_slug}/account/orders">
-        Opna mínar pantanir
-      </a>
-    </p>
-  `;
 }

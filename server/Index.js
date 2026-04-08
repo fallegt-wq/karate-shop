@@ -799,7 +799,28 @@ app.patch("/api/clubs/:clubSlug/orders/:orderId/payment", async (req, res) => {
     res.status(400).json({ error: "BAD_REQUEST", message: e?.message || "Invalid payment" });
   }
 });
+app.get("/api/clubs/:clubSlug/orders/:orderId/public", async (req, res) => {
+  try {
+    const order = await getOrder(req.params.clubSlug, req.params.orderId);
 
+    if (!order) {
+      return res.status(404).json({ error: "NOT_FOUND" });
+    }
+
+    res.json({
+      order_id: order.order_id,
+      status: order.status,
+      payment_status: order.payment?.status,
+      buyer_email: order.buyer_email,
+      total_amount: order.total_amount,
+      items: order.body?.items || [],
+      registrations: order.body?.registrations || [],
+      created_at: order.created_at,
+    });
+  } catch (e) {
+    res.status(500).json({ error: "SERVER_ERROR" });
+  }
+});
 /* ==========================
    USER: list latest notifications
    ========================== */

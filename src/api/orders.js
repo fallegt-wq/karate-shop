@@ -88,3 +88,8 @@ export async function markOrderPaid(clubSlug, orderId, provider = "demo") {
     body: { status: "PAID", provider },
   });
 }
+export async function getOrderPublic(clubSlug, orderId) {
+  return httpJson(`/api/clubs/${clubSlug}/orders/${orderId}/public`, {
+    method: "GET",
+  });
+}

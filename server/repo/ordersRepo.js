@@ -89,6 +89,10 @@ function mapOrderRow(row) {
     buyer_email: row.buyer_email || null,
     total_amount: Number(row.total_amount || 0),
     body,
+    receipt_email: {
+      sent_at: row.receipt_email_sent_at || null,
+      error: row.receipt_email_error || null,
+    },
     created_at: row.created_at,
   };
 }
@@ -118,6 +122,8 @@ export async function createOrder(clubSlug, body = {}, sessionBuyerEmail = null)
   const orderHasTotalAmount = hasColumn(db, "orders", "total_amount");
   const orderHasBodyJson = hasColumn(db, "orders", "body_json");
   const orderHasOrderJson = hasColumn(db, "orders", "order_json");
+  const orderHasReceiptSentAt = hasColumn(db, "orders", "receipt_email_sent_at");
+  const orderHasReceiptError = hasColumn(db, "orders", "receipt_email_error");
 
   const columns = [
     "club_id",
@@ -157,6 +163,18 @@ export async function createOrder(clubSlug, body = {}, sessionBuyerEmail = null)
     placeholders.push("?");
   }
 
+  if (orderHasReceiptSentAt) {
+    columns.push("receipt_email_sent_at");
+    values.push(null);
+    placeholders.push("?");
+  }
+
+  if (orderHasReceiptError) {
+    columns.push("receipt_email_error");
+    values.push(null);
+    placeholders.push("?");
+  }
+
   columns.push("created_at");
   placeholders.push("datetime('now')");
 
@@ -166,7 +184,7 @@ export async function createOrder(clubSlug, body = {}, sessionBuyerEmail = null)
       ${columns.join(", ")}
     )
     VALUES (${placeholders.join(", ")})
-  `
+    `
   ).run(...values);
 
   const row = db
@@ -175,7 +193,7 @@ export async function createOrder(clubSlug, body = {}, sessionBuyerEmail = null)
       SELECT *
       FROM orders
       WHERE club_id = ? AND order_id = ?
-    `
+      `
     )
     .get(club.id, orderId);
 
@@ -193,7 +211,7 @@ export async function listOrders(clubSlug) {
       FROM orders
       WHERE club_id = ?
       ORDER BY datetime(created_at) DESC, id DESC
-    `
+      `
     )
     .all(club.id);
 
@@ -215,7 +233,7 @@ export async function listOrdersByBuyer(clubSlug, buyerEmail) {
       WHERE club_id = ?
         AND lower(coalesce(buyer_email, '')) = ?
       ORDER BY datetime(created_at) DESC, id DESC
-    `
+      `
     )
     .all(club.id, email);
 
@@ -232,7 +250,7 @@ export async function getOrder(clubSlug, orderId) {
       SELECT *
       FROM orders
       WHERE club_id = ? AND order_id = ?
-    `
+      `
     )
     .get(club.id, String(orderId || "").trim());
 
@@ -250,7 +268,7 @@ export async function updateOrderStatus(clubSlug, orderId, status) {
       UPDATE orders
       SET status = ?
       WHERE club_id = ? AND order_id = ?
-    `
+      `
     )
     .run(nextStatus, club.id, String(orderId || "").trim());
 
@@ -271,7 +289,7 @@ export async function updateOrderPayment(clubSlug, orderId, { status, provider }
       SET payment_status = ?,
           payment_provider = ?
       WHERE club_id = ? AND order_id = ?
-    `
+      `
     )
     .run(
       paymentStatus,
@@ -279,6 +297,46 @@ export async function updateOrderPayment(clubSlug, orderId, { status, provider }
       club.id,
       String(orderId || "").trim()
     );
+
+  if (info.changes === 0) return null;
+  return getOrder(clubSlug, orderId);
+}
+
+export async function markOrderReceiptSent(clubSlug, orderId) {
+  const db = getSqliteDb();
+  const club = ensureClubBySlug(clubSlug);
+
+  const info = db
+    .prepare(
+      `
+      UPDATE orders
+      SET receipt_email_sent_at = datetime('now'),
+          receipt_email_error = NULL
+      WHERE club_id = ? AND order_id = ?
+      `
+    )
+    .run(club.id, String(orderId || "").trim());
+
+  if (info.changes === 0) return null;
+  return getOrder(clubSlug, orderId);
+}
+
+export async function markOrderReceiptFailed(clubSlug, orderId, errorMessage) {
+  const db = getSqliteDb();
+  const club = ensureClubBySlug(clubSlug);
+
+  const message =
+    String(errorMessage || "").trim().slice(0, 1000) || "Unknown email error";
+
+  const info = db
+    .prepare(
+      `
+      UPDATE orders
+      SET receipt_email_error = ?
+      WHERE club_id = ? AND order_id = ?
+      `
+    )
+    .run(message, club.id, String(orderId || "").trim());
 
   if (info.changes === 0) return null;
   return getOrder(clubSlug, orderId);

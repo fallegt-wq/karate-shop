@@ -1,205 +1,182 @@
-// server/services/orderProcessing.js
-import { getSqliteDb, ensureClubBySlug } from "../sqlite.js";
-import { createAthlete, createPayment } from "../repo/clubAdminRepo.js";
-import { getOrder, updateOrderPayment, updateOrderStatus } from "../repo/ordersRepo.js";
+// server/utils/email.js
 
-function safeJsonParse(value) {
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function formatISK(value) {
+  const amount = Number(value || 0);
   try {
-    return value ? JSON.parse(value) : null;
+    return new Intl.NumberFormat("is-IS", {
+      style: "currency",
+      currency: "ISK",
+      maximumFractionDigits: 0,
+    }).format(amount);
   } catch {
-    return null;
+    return `${amount} kr.`;
   }
 }
 
-function splitName(fullName) {
-  const raw = String(fullName || "").trim();
-  if (!raw) return { first_name: "Óþekkt", last_name: "Iðkandi" };
+function buildOrderReceiptEmail(order) {
+  const clubSlug = String(order?.club_slug || "").trim();
+  const buyerEmail = String(order?.buyer_email || "").trim();
+  const body = order?.body || {};
+  const buyerName = String(body?.buyer?.name || "").trim();
+  const items = Array.isArray(body?.items) ? body.items : [];
+  const registrations = Array.isArray(body?.registrations) ? body.registrations : [];
 
-  const parts = raw.split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return { first_name: parts[0], last_name: "-" };
+  const lines = items.map((item) => {
+    const reg = registrations.find(
+      (r) => String(r?.cartId || "") === String(item?.cartId || "")
+    );
 
-  return {
-    first_name: parts[0],
-    last_name: parts.slice(1).join(" "),
-  };
-}
-
-function normalizeEmail(email) {
-  const v = String(email || "").trim().toLowerCase();
-  return v.includes("@") ? v : null;
-}
-
-function findExistingRegistration(clubSlug, orderId, courseId, athleteId) {
-  const db = getSqliteDb();
-  const club = ensureClubBySlug(clubSlug);
-
-  return db.prepare(`
-    SELECT * FROM course_registrations
-    WHERE club_slug = ?
-      AND order_id = ?
-      AND course_id = ?
-      AND athlete_id = ?
-    LIMIT 1
-  `).get(
-    club.slug,
-    String(orderId),
-    String(courseId),
-    Number(athleteId)
-  );
-}
-
-function createOrFindAthlete({ clubSlug, athleteName, kennitala, birthDate, buyerEmail }) {
-  const db = getSqliteDb();
-  const club = ensureClubBySlug(clubSlug);
-
-  const { first_name, last_name } = splitName(athleteName);
-
-  const existing = db.prepare(`
-    SELECT * FROM athletes
-    WHERE club_id = ?
-      AND lower(first_name)=lower(?)
-      AND lower(last_name)=lower(?)
-    LIMIT 1
-  `).get(club.id, first_name, last_name);
-
-  if (existing) return existing;
-
-  return createAthlete(clubSlug, {
-    first_name,
-    last_name,
-    national_id: kennitala || null,
-    email: normalizeEmail(buyerEmail),
-    phone: buyerEmail ? `me:${buyerEmail}` : null,
-    birthdate: birthDate || null,
-    notes: null,
-  });
-}
-
-function createCourseRegistration({ clubSlug, athleteId, orderId, paymentId, courseId, courseTitle, coursePrice }) {
-  const db = getSqliteDb();
-
-  const info = db.prepare(`
-    INSERT INTO course_registrations (
-      user_id,
-      participant_id,
-      athlete_id,
-      club_slug,
-      course_id,
-      course_title,
-      course_price,
-      status,
-      payment_status,
-      order_id,
-      payment_id,
-      created_at
-    )
-    VALUES (0, NULL, ?, ?, ?, ?, ?, 'paid', 'paid', ?, ?, datetime('now'))
-  `).run(
-    athleteId,
-    clubSlug,
-    courseId,
-    courseTitle,
-    coursePrice,
-    orderId,
-    paymentId
-  );
-
-  return db.prepare(`SELECT * FROM course_registrations WHERE id = ?`)
-    .get(info.lastInsertRowid);
-}
-
-async function processRegistrationItem(clubSlug, order, item) {
-  const db = getSqliteDb();
-
-  const orderBody = order.body || {};
-  const registrations = orderBody.registrations || [];
-  const reg = registrations.find(r => r.cartId === item.cartId) || {};
-
-  const athlete = createOrFindAthlete({
-    clubSlug,
-    athleteName: reg.athleteName,
-    kennitala: reg.kennitala,
-    birthDate: reg.athleteDob,
-    buyerEmail: order.buyer_email,
-  });
-
-  // DUPLICATE CHECK
-  const existing = findExistingRegistration(
-    clubSlug,
-    order.order_id,
-    item.productId,
-    athlete.id
-  );
-
-  if (existing) {
-    return { skipped: true, reason: "already_exists", registration: existing };
-  }
-
-  const payment = createPayment(clubSlug, {
-    athlete_id: athlete.id,
-    enrollment_id: null,
-    title: item.name,
-    amount_isk: item.price,
-    due_date: null,
-  });
-
-  db.prepare(`
-    UPDATE payments
-    SET status='paid', paid_at=datetime('now'), reference=?
-    WHERE id=?
-  `).run(order.order_id, payment.id);
-
-  const registration = createCourseRegistration({
-    clubSlug,
-    athleteId: athlete.id,
-    orderId: order.order_id,
-    paymentId: payment.id,
-    courseId: item.productId,
-    courseTitle: item.name,
-    coursePrice: item.price,
-  });
-
-  return { athlete, payment, registration };
-}
-
-export async function processOrderAfterPayment(clubSlug, orderId) {
-  const db = getSqliteDb();
-
-  const tx = db.transaction(() => {
-    const order = getOrder(clubSlug, orderId);
-    if (!order) throw new Error("Order not found");
-
-    if (order.status === "FULFILLED") {
-      return { ok: true, alreadyProcessed: true, order };
-    }
-
-    const items = order.body?.items || [];
-    const regItems = items.filter(i => i.type === "REGISTRATION");
-
-    const results = [];
-
-    for (const item of regItems) {
-      const r = processRegistrationItem(clubSlug, order, item);
-      results.push(r);
-    }
-
-    updateOrderStatus(clubSlug, orderId, "FULFILLED");
+    const itemName = String(item?.name || "Námskeið");
+    const athleteName = String(reg?.athleteName || "").trim();
+    const price = formatISK(item?.price || 0);
 
     return {
-      ok: true,
-      order: getOrder(clubSlug, orderId),
-      results,
+      itemName,
+      athleteName,
+      price,
     };
   });
 
-  return tx();
+  const subject =
+    clubSlug
+      ? `Staðfesting á skráningu - ${clubSlug}`
+      : "Staðfesting á skráningu";
+
+  const greeting = buyerName ? `Sæl/l ${buyerName},` : "Sæl/l,";
+
+  const text = [
+    greeting,
+    "",
+    "Greiðsla hefur verið staðfest og skráning móttekin.",
+    "",
+    `Pöntunarnúmer: ${order?.order_id || ""}`,
+    `Netfang kaupanda: ${buyerEmail}`,
+    `Upphæð: ${formatISK(order?.total_amount || 0)}`,
+    "",
+    "Skráningar:",
+    ...lines.map((line) =>
+      line.athleteName
+        ? `- ${line.itemName} (${line.athleteName}) - ${line.price}`
+        : `- ${line.itemName} - ${line.price}`
+    ),
+    "",
+    "Takk fyrir skráninguna.",
+  ].join("\n");
+
+  const htmlItems = lines.length
+    ? `
+      <ul style="padding-left:20px;margin:12px 0;">
+        ${lines
+          .map(
+            (line) => `
+              <li style="margin:8px 0;">
+                <strong>${escapeHtml(line.itemName)}</strong>
+                ${
+                  line.athleteName
+                    ? ` - ${escapeHtml(line.athleteName)}`
+                    : ""
+                }
+                - ${escapeHtml(line.price)}
+              </li>
+            `
+          )
+          .join("")}
+      </ul>
+    `
+    : `<p>Engar línur fundust í pöntun.</p>`;
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;color:#18181b;line-height:1.5;">
+      <p>${escapeHtml(greeting)}</p>
+      <p>Greiðsla hefur verið staðfest og skráning móttekin.</p>
+
+      <div style="background:#f4f4f5;border-radius:12px;padding:16px;margin:16px 0;">
+        <div><strong>Pöntunarnúmer:</strong> ${escapeHtml(order?.order_id || "")}</div>
+        <div><strong>Netfang kaupanda:</strong> ${escapeHtml(buyerEmail)}</div>
+        <div><strong>Upphæð:</strong> ${escapeHtml(formatISK(order?.total_amount || 0))}</div>
+      </div>
+
+      <h3 style="margin:16px 0 8px;">Skráningar</h3>
+      ${htmlItems}
+
+      <p style="margin-top:20px;">Takk fyrir skráninguna.</p>
+    </div>
+  `;
+
+  return { subject, text, html };
 }
 
-export async function markOrderPaidAndProcess(clubSlug, orderId, provider = "stripe") {
-  await updateOrderPayment(clubSlug, orderId, {
-    status: "PAID",
-    provider,
+export async function sendOrderReceiptEmail(order) {
+  const apiKey = String(process.env.RESEND_API_KEY || "").trim();
+  const fromEmail = String(process.env.EMAIL_FROM || "").trim();
+  const buyerEmail = String(order?.buyer_email || "").trim();
+
+  if (!buyerEmail || !buyerEmail.includes("@")) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: "missing_buyer_email",
+    };
+  }
+
+  if (!apiKey || !fromEmail) {
+    console.log(
+      "[EMAIL] skipped: RESEND_API_KEY or EMAIL_FROM missing"
+    );
+    return {
+      ok: false,
+      skipped: true,
+      reason: "email_not_configured",
+    };
+  }
+
+  const { subject, text, html } = buildOrderReceiptEmail(order);
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: fromEmail,
+      to: [buyerEmail],
+      subject,
+      text,
+      html,
+    }),
   });
 
-  return processOrderAfterPayment(clubSlug, orderId);
+  const payloadText = await response.text();
+  let payload = null;
+
+  try {
+    payload = payloadText ? JSON.parse(payloadText) : null;
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    const message =
+      payload?.message ||
+      payload?.error ||
+      `Email send failed (${response.status})`;
+
+    throw new Error(message);
+  }
+
+  return {
+    ok: true,
+    provider: "resend",
+    messageId: payload?.id || null,
+  };
 }

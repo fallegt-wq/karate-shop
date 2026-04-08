@@ -1,3 +1,5 @@
+import { sendEmail } from "../utils/email.js";
+
 // server/utils/email.js
 
 function escapeHtml(value) {
@@ -179,4 +181,40 @@ export async function sendOrderReceiptEmail(order) {
     provider: "resend",
     messageId: payload?.id || null,
   };
+}
+function buildOrderEmail(order, results) {
+  const items = order.body?.items || [];
+
+  const lines = items.map((item) => {
+    return `
+      <tr>
+        <td>${item.name}</td>
+        <td>${item.price} kr.</td>
+      </tr>
+    `;
+  }).join("");
+
+  return `
+    <h2>Skráning staðfest</h2>
+    <p>Takk fyrir skráninguna.</p>
+
+    <h3>Pöntun</h3>
+    <table border="1" cellpadding="8" cellspacing="0">
+      <tr>
+        <th>Námskeið</th>
+        <th>Verð</th>
+      </tr>
+      ${lines}
+    </table>
+
+    <p><strong>Samtals:</strong> ${order.total_amount} kr.</p>
+
+    <p>
+      Þú getur skoðað pantanir hér:
+      <br/>
+      <a href="${process.env.FRONTEND_URL}/c/${order.club_slug}/account/orders">
+        Opna mínar pantanir
+      </a>
+    </p>
+  `;
 }

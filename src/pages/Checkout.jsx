@@ -1,6 +1,6 @@
 // src/pages/Checkout.jsx
-import React, { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import ClubShell from "../components/layout/ClubShell";
 import { createStripeCheckoutSession } from "../api/orders";
@@ -86,8 +86,16 @@ function toRegistrationPayload(item, form) {
   };
 }
 
+function useQuery() {
+  return new URLSearchParams(useLocation().search);
+}
+
+const CHECKOUT_PENDING_STORAGE_KEY = "checkout_pending_order";
+
 export default function Checkout() {
   const { clubSlug } = useParams();
+  const location = useLocation();
+  const query = useQuery();
   const { items, remove, total, clear } = useCart();
 
   const [submitting, setSubmitting] = useState(false);
@@ -187,8 +195,7 @@ export default function Checkout() {
       return {
         ok: false,
         needsParticipantLogin: false,
-        message:
-          "Enginn iðkandi uppfyllir aldursskilyrði frístundastyrks.",
+        message: "Enginn iðkandi uppfyllir aldursskilyrði frístundastyrks.",
       };
     }
 
@@ -250,6 +257,13 @@ export default function Checkout() {
     regForms,
   ]);
 
+  useEffect(() => {
+    const cancelled = query.get("cancelled");
+    if (cancelled === "true") {
+      setSubmitError("Greiðslu var hætt við. Karfan hefur ekki verið tæmd og þú getur reynt aftur.");
+    }
+  }, [location.search, query]);
+
   async function submitOrder() {
     if (submitting || !canSubmit) return;
 
@@ -306,10 +320,10 @@ export default function Checkout() {
         fristundastyrkurDiscount: appliedGrant,
         total: grandTotal,
       },
-   payment: {
-  status: "UNPAID",
-  provider: "stripe",
-},
+      payment: {
+        status: "UNPAID",
+        provider: "stripe",
+      },
     };
 
     try {
@@ -317,15 +331,25 @@ export default function Checkout() {
       setSuccessMessage("");
       setSubmitting(true);
 
-  const session = await createStripeCheckoutSession(clubSlug, orderPayload);
+      const session = await createStripeCheckoutSession(clubSlug, orderPayload);
 
-if (!session?.url) {
-  throw new Error("Stripe session missing url");
-}
+      if (!session?.url) {
+        throw new Error("Stripe session missing url");
+      }
 
-clear();
-window.location.href = session.url;
-return;
+      try {
+        const pending = {
+          clubSlug,
+          orderId: session?.orderId || null,
+          createdAt: new Date().toISOString(),
+        };
+        sessionStorage.setItem(CHECKOUT_PENDING_STORAGE_KEY, JSON.stringify(pending));
+      } catch {
+        // ignore storage failure
+      }
+
+      window.location.href = session.url;
+      return;
     } catch (e) {
       setSubmitError(e?.message || "Mistókst að senda checkout");
     } finally {

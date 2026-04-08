@@ -122,6 +122,8 @@ export function initIðkendaSchema() {
       buyer_email TEXT,
       total_amount INTEGER NOT NULL DEFAULT 0,
       body_json TEXT,
+      receipt_email_sent_at TEXT,
+      receipt_email_error TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (club_id) REFERENCES clubs(id) ON DELETE CASCADE
     );
@@ -245,6 +247,8 @@ export function initIðkendaSchema() {
     addColumnIfMissing(db, "orders", "buyer_email", "buyer_email TEXT");
     addColumnIfMissing(db, "orders", "total_amount", "total_amount INTEGER NOT NULL DEFAULT 0");
     addColumnIfMissing(db, "orders", "body_json", "body_json TEXT");
+    addColumnIfMissing(db, "orders", "receipt_email_sent_at", "receipt_email_sent_at TEXT");
+    addColumnIfMissing(db, "orders", "receipt_email_error", "receipt_email_error TEXT");
     addColumnIfMissing(db, "orders", "created_at", "created_at TEXT DEFAULT (datetime('now'))");
 
     db.exec(`
@@ -280,6 +284,12 @@ export function initIðkendaSchema() {
 
   try {
     db.exec("CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders(club_id, payment_status)");
+  } catch {
+    // ignore
+  }
+
+  try {
+    db.exec("CREATE INDEX IF NOT EXISTS idx_orders_receipt_sent ON orders(receipt_email_sent_at)");
   } catch {
     // ignore
   }

@@ -13,16 +13,10 @@ function safeJsonParse(value) {
 
 function splitName(fullName) {
   const raw = String(fullName || "").trim();
-
-  if (!raw) {
-    return { first_name: "Óþekkt", last_name: "Iðkandi" };
-  }
+  if (!raw) return { first_name: "Óþekkt", last_name: "Iðkandi" };
 
   const parts = raw.split(/\s+/).filter(Boolean);
-
-  if (parts.length === 1) {
-    return { first_name: parts[0], last_name: "-" };
-  }
+  if (parts.length === 1) return { first_name: parts[0], last_name: "-" };
 
   return {
     first_name: parts[0],
@@ -31,330 +25,181 @@ function splitName(fullName) {
 }
 
 function normalizeEmail(email) {
-  const value = String(email || "").trim().toLowerCase();
-  return value && value.includes("@") ? value : null;
+  const v = String(email || "").trim().toLowerCase();
+  return v.includes("@") ? v : null;
 }
 
-function normalizeNationalId(value) {
-  const v = String(value || "").trim();
-  return v || null;
-}
-
-function normalizeBirthdate(value) {
-  const v = String(value || "").trim();
-  return v || null;
-}
-
-function findAthleteByNationalId(clubSlug, nationalId) {
+function findExistingRegistration(clubSlug, orderId, courseId, athleteId) {
   const db = getSqliteDb();
   const club = ensureClubBySlug(clubSlug);
-  const nid = normalizeNationalId(nationalId);
 
-  if (!nid) return null;
-
-  return db
-    .prepare(
-      `
-      SELECT *
-      FROM athletes
-      WHERE club_id = ?
-        AND national_id = ?
-      ORDER BY id DESC
-      LIMIT 1
-    `
-    )
-    .get(club.id, nid);
-}
-
-function findAthleteByNameAndBirthdate(clubSlug, fullName, birthdate) {
-  const db = getSqliteDb();
-  const club = ensureClubBySlug(clubSlug);
-  const bd = normalizeBirthdate(birthdate);
-  const { first_name, last_name } = splitName(fullName);
-
-  return db
-    .prepare(
-      `
-      SELECT *
-      FROM athletes
-      WHERE club_id = ?
-        AND lower(first_name) = lower(?)
-        AND lower(last_name) = lower(?)
-        AND coalesce(birthdate, '') = coalesce(?, '')
-      ORDER BY id DESC
-      LIMIT 1
-    `
-    )
-    .get(club.id, first_name, last_name, bd);
-}
-
-function createOrFindAthlete({
-  clubSlug,
-  athleteName,
-  kennitala,
-  birthDate,
-  buyerEmail,
-  guardianName,
-  notes,
-}) {
-  const byNationalId = findAthleteByNationalId(clubSlug, kennitala);
-  if (byNationalId) return byNationalId;
-
-  const byNameAndBirthdate = findAthleteByNameAndBirthdate(
-    clubSlug,
-    athleteName,
-    birthDate
+  return db.prepare(`
+    SELECT * FROM course_registrations
+    WHERE club_slug = ?
+      AND order_id = ?
+      AND course_id = ?
+      AND athlete_id = ?
+    LIMIT 1
+  `).get(
+    club.slug,
+    String(orderId),
+    String(courseId),
+    Number(athleteId)
   );
-  if (byNameAndBirthdate) return byNameAndBirthdate;
+}
+
+function createOrFindAthlete({ clubSlug, athleteName, kennitala, birthDate, buyerEmail }) {
+  const db = getSqliteDb();
+  const club = ensureClubBySlug(clubSlug);
 
   const { first_name, last_name } = splitName(athleteName);
-  const email = normalizeEmail(buyerEmail);
+
+  const existing = db.prepare(`
+    SELECT * FROM athletes
+    WHERE club_id = ?
+      AND lower(first_name)=lower(?)
+      AND lower(last_name)=lower(?)
+    LIMIT 1
+  `).get(club.id, first_name, last_name);
+
+  if (existing) return existing;
 
   return createAthlete(clubSlug, {
     first_name,
     last_name,
-    national_id: normalizeNationalId(kennitala),
-    email,
-    phone: email ? `me:${email}` : null,
-    birthdate: normalizeBirthdate(birthDate),
-    notes: [guardianName ? `Forráðamaður: ${guardianName}` : null, notes || null]
-      .filter(Boolean)
-      .join(" | "),
+    national_id: kennitala || null,
+    email: normalizeEmail(buyerEmail),
+    phone: buyerEmail ? `me:${buyerEmail}` : null,
+    birthdate: birthDate || null,
+    notes: null,
   });
 }
 
-function createCourseRegistration({
-  clubSlug,
-  athleteId,
-  orderId,
-  paymentId,
-  courseId,
-  courseTitle,
-  coursePrice,
-}) {
+function createCourseRegistration({ clubSlug, athleteId, orderId, paymentId, courseId, courseTitle, coursePrice }) {
   const db = getSqliteDb();
 
-  const info = db
-    .prepare(
-      `
-      INSERT INTO course_registrations (
-        user_id,
-        participant_id,
-        athlete_id,
-        club_slug,
-        course_id,
-        course_title,
-        course_price,
-        status,
-        payment_status,
-        order_id,
-        payment_id,
-        created_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'unpaid', ?, ?, datetime('now'))
-    `
+  const info = db.prepare(`
+    INSERT INTO course_registrations (
+      user_id,
+      participant_id,
+      athlete_id,
+      club_slug,
+      course_id,
+      course_title,
+      course_price,
+      status,
+      payment_status,
+      order_id,
+      payment_id,
+      created_at
     )
-    .run(
-      0,
-      null,
-      Number(athleteId),
-      String(clubSlug || "").trim().toLowerCase(),
-      String(courseId || "").trim(),
-      String(courseTitle || "").trim(),
-      Number(coursePrice || 0),
-      String(orderId || "").trim(),
-      paymentId != null ? Number(paymentId) : null
-    );
+    VALUES (0, NULL, ?, ?, ?, ?, ?, 'paid', 'paid', ?, ?, datetime('now'))
+  `).run(
+    athleteId,
+    clubSlug,
+    courseId,
+    courseTitle,
+    coursePrice,
+    orderId,
+    paymentId
+  );
 
-  return db
-    .prepare(`SELECT * FROM course_registrations WHERE id = ?`)
+  return db.prepare(`SELECT * FROM course_registrations WHERE id = ?`)
     .get(info.lastInsertRowid);
 }
 
-function markRegistrationPaid(registrationId) {
+async function processRegistrationItem(clubSlug, order, item) {
   const db = getSqliteDb();
 
-  db.prepare(
-    `
-    UPDATE course_registrations
-    SET payment_status = 'paid',
-        status = 'paid'
-    WHERE id = ?
-  `
-  ).run(Number(registrationId));
-
-  return db
-    .prepare(`SELECT * FROM course_registrations WHERE id = ?`)
-    .get(Number(registrationId));
-}
-
-function extractRegistrationInput(orderBody, item) {
-  const registrations = Array.isArray(orderBody?.registrations)
-    ? orderBody.registrations
-    : [];
-
-  const match = registrations.find(
-    (r) => String(r?.cartId || "") === String(item?.cartId || "")
-  );
-
-  return match || {};
-}
-
-function isRegistrationItem(item) {
-  return String(item?.type || "").toUpperCase() === "REGISTRATION";
-}
-
-function ensurePaid(order) {
-  const status = String(order?.payment?.status || "").toUpperCase();
-  if (status !== "PAID") {
-    throw new Error("Order is not paid");
-  }
-}
-
-function ensureNotFulfilled(order) {
-  const status = String(order?.status || "").toUpperCase();
-  return status !== "FULFILLED";
-}
-
-function mapPaymentTitle(item, registrationInput) {
-  return (
-    registrationInput?.productName ||
-    item?.name ||
-    item?.courseTitle ||
-    "Námskeið"
-  );
-}
-
-function mapCourseId(item, registrationInput) {
-  return registrationInput?.productId || item?.productId || item?.id || "";
-}
-
-async function processRegistrationItem(clubSlug, order, item) {
-  const orderBody = order?.body || {};
-  const registrationInput = extractRegistrationInput(orderBody, item);
-  const buyerEmail = order?.buyer_email || orderBody?.buyer?.email || null;
-
-  const athleteName = registrationInput?.athleteName;
-  const athleteDob =
-    registrationInput?.athleteDob || registrationInput?.birthDate || null;
-  const guardianName = registrationInput?.guardianName || "";
-  const notes = registrationInput?.notes || "";
-  const kennitala =
-    registrationInput?.kennitala || registrationInput?.athleteKennitala || null;
-
-  if (!athleteName) {
-    throw new Error("Registration item missing athleteName");
-  }
+  const orderBody = order.body || {};
+  const registrations = orderBody.registrations || [];
+  const reg = registrations.find(r => r.cartId === item.cartId) || {};
 
   const athlete = createOrFindAthlete({
     clubSlug,
-    athleteName,
-    kennitala,
-    birthDate: athleteDob,
-    buyerEmail,
-    guardianName,
-    notes,
+    athleteName: reg.athleteName,
+    kennitala: reg.kennitala,
+    birthDate: reg.athleteDob,
+    buyerEmail: order.buyer_email,
   });
+
+  // DUPLICATE CHECK
+  const existing = findExistingRegistration(
+    clubSlug,
+    order.order_id,
+    item.productId,
+    athlete.id
+  );
+
+  if (existing) {
+    return { skipped: true, reason: "already_exists", registration: existing };
+  }
 
   const payment = createPayment(clubSlug, {
     athlete_id: athlete.id,
     enrollment_id: null,
-    title: mapPaymentTitle(item, registrationInput),
-    amount_isk: Number(item?.price || 0),
+    title: item.name,
+    amount_isk: item.price,
     due_date: null,
   });
 
-  const db = getSqliteDb();
-
-  db.prepare(
-    `
+  db.prepare(`
     UPDATE payments
-    SET status = 'paid',
-        paid_at = datetime('now'),
-        method = ?,
-        reference = ?
-    WHERE id = ?
-  `
-  ).run(
-    order?.payment?.provider || "order_checkout",
-    String(order?.order_id || ""),
-    Number(payment.id)
-  );
+    SET status='paid', paid_at=datetime('now'), reference=?
+    WHERE id=?
+  `).run(order.order_id, payment.id);
 
   const registration = createCourseRegistration({
     clubSlug,
     athleteId: athlete.id,
-    orderId: order?.order_id,
+    orderId: order.order_id,
     paymentId: payment.id,
-    courseId: mapCourseId(item, registrationInput),
-    courseTitle: mapPaymentTitle(item, registrationInput),
-    coursePrice: Number(item?.price || 0),
+    courseId: item.productId,
+    courseTitle: item.name,
+    coursePrice: item.price,
   });
 
-  const paidRegistration = markRegistrationPaid(registration.id);
-
-  return {
-    athlete,
-    registration: paidRegistration,
-    payment: db.prepare(`SELECT * FROM payments WHERE id = ?`).get(Number(payment.id)),
-  };
+  return { athlete, payment, registration };
 }
 
 export async function processOrderAfterPayment(clubSlug, orderId) {
-  const order = await getOrder(clubSlug, orderId);
+  const db = getSqliteDb();
 
-  if (!order) {
-    throw new Error("Order not found");
-  }
+  const tx = db.transaction(() => {
+    const order = getOrder(clubSlug, orderId);
+    if (!order) throw new Error("Order not found");
 
-  ensurePaid(order);
+    if (order.status === "FULFILLED") {
+      return { ok: true, alreadyProcessed: true, order };
+    }
 
-  const shouldContinue = ensureNotFulfilled(order);
-  if (!shouldContinue) {
+    const items = order.body?.items || [];
+    const regItems = items.filter(i => i.type === "REGISTRATION");
+
+    const results = [];
+
+    for (const item of regItems) {
+      const r = processRegistrationItem(clubSlug, order, item);
+      results.push(r);
+    }
+
+    updateOrderStatus(clubSlug, orderId, "FULFILLED");
+
     return {
       ok: true,
-      alreadyProcessed: true,
-      order,
-      results: [],
+      order: getOrder(clubSlug, orderId),
+      results,
     };
-  }
+  });
 
-  const orderBody =
-    order?.body && typeof order.body === "object"
-      ? order.body
-      : safeJsonParse(order?.body_json) || {};
-
-  const items = Array.isArray(orderBody?.items) ? orderBody.items : [];
-  const registrationItems = items.filter(isRegistrationItem);
-
-  const results = [];
-
-  for (const item of registrationItems) {
-    const result = await processRegistrationItem(clubSlug, order, item);
-    results.push(result);
-  }
-
-  await updateOrderStatus(clubSlug, orderId, "FULFILLED");
-
-  const updatedOrder = await getOrder(clubSlug, orderId);
-
-  return {
-    ok: true,
-    alreadyProcessed: false,
-    order: updatedOrder,
-    results,
-  };
+  return tx();
 }
 
-export async function markOrderPaidAndProcess(clubSlug, orderId, provider = "demo") {
-  const updated = await updateOrderPayment(clubSlug, orderId, {
+export async function markOrderPaidAndProcess(clubSlug, orderId, provider = "stripe") {
+  await updateOrderPayment(clubSlug, orderId, {
     status: "PAID",
     provider,
   });
-
-  if (!updated) {
-    throw new Error("Order not found");
-  }
 
   return processOrderAfterPayment(clubSlug, orderId);
 }

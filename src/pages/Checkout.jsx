@@ -50,7 +50,6 @@ function formatISK(value) {
   }
 }
 
-// YYYY-MM-DD -> birthYear (safe)
 function birthYearFromIso(iso) {
   if (!iso || typeof iso !== "string") return null;
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -60,7 +59,6 @@ function birthYearFromIso(iso) {
   return y;
 }
 
-// YEAR-BASED rule: eligible if birthYear in [currentYear-18, currentYear-6]
 function isEligibleByYearRule(isoDob, currentYear) {
   const by = birthYearFromIso(isoDob);
   if (by === null) return { ok: false, reason: "missing_or_invalid_dob" };
@@ -102,13 +100,11 @@ export default function Checkout() {
   const [submitError, setSubmitError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  // Purchaser
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [agreeTerms, setAgreeTerms] = useState(false);
 
-  // Registration forms per cart item (keyed by cartId)
   const [regForms, setRegForms] = useState({});
 
   function updateReg(cartId, patch) {
@@ -118,14 +114,12 @@ export default function Checkout() {
     }));
   }
 
-  // === Frístundastyrkur ===
   const [useGrant, setUseGrant] = useState(false);
   const [municipality, setMunicipality] = useState("Reykjavík");
   const [grantAmount, setGrantAmount] = useState(0);
   const [grantNote, setGrantNote] = useState("");
 
-  // Rafræn skilríki (demo)
-  const [loginAs, setLoginAs] = useState("GUARDIAN"); // "GUARDIAN" | "PARTICIPANT"
+  const [loginAs, setLoginAs] = useState("GUARDIAN");
   const [eidVerified, setEidVerified] = useState(false);
 
   const registrationItems = useMemo(
@@ -213,38 +207,47 @@ export default function Checkout() {
     return true;
   }, [useGrant, grantAgeCheck, loginAs]);
 
-  const canSubmit = useMemo(() => {
-    if (!items.length) return false;
-    if (!agreeTerms) return false;
-    if (!buyerName.trim() || !buyerEmail.trim()) return false;
+  const validationMessage = useMemo(() => {
+    if (!items.length) return "Karfan er tóm.";
+    if (!buyerName.trim()) return "Vantar nafn kaupanda.";
+    if (!buyerEmail.trim()) return "Vantar netfang kaupanda.";
+    if (!agreeTerms) return "Þú þarft að samþykkja skilmála.";
 
     if (useGrant) {
-      if (eligibleSubtotal <= 0) return false;
-      if (appliedGrant <= 0) return false;
-      if (!municipality.trim()) return false;
-      if (!grantAgeCheck.ok) return false;
-      if (!eidVerified) return false;
-      if (!loginRequirementOk) return false;
+      if (eligibleSubtotal <= 0) return "Engin styrkhæf námskeið eru í körfu.";
+      if (appliedGrant <= 0) return "Veldu upphæð frístundastyrks.";
+      if (!municipality.trim()) return "Veldu sveitarfélag.";
+      if (!grantAgeCheck.ok) return grantAgeCheck.message || "Frístundastyrkur stenst ekki skilyrði.";
+      if (!eidVerified) return "Þú þarft að staðfesta rafræn skilríki (demo).";
+      if (!loginRequirementOk) return "Þú þarft að velja rétta innskráningu.";
     }
 
-    if (!hasRegistration) return true;
+    if (!hasRegistration) return "";
 
     for (const p of registrationItems) {
       const schema = p.registration || {};
       const f = regForms[p.cartId] || {};
 
-      if (schema.requiresAthleteName && !String(f.athleteName || "").trim()) return false;
-      if (schema.requiresAthleteDob && !String(f.athleteDob || "").trim()) return false;
-      if (schema.requiresGuardian && !String(f.guardianName || "").trim()) return false;
-      if (schema.requiresNotes && !String(f.notes || "").trim()) return false;
+      if (schema.requiresAthleteName && !String(f.athleteName || "").trim()) {
+        return `Vantar nafn iðkanda fyrir "${p.name}".`;
+      }
+      if (schema.requiresAthleteDob && !String(f.athleteDob || "").trim()) {
+        return `Vantar fæðingardag fyrir "${p.name}".`;
+      }
+      if (schema.requiresGuardian && !String(f.guardianName || "").trim()) {
+        return `Vantar forráðamann fyrir "${p.name}".`;
+      }
+      if (schema.requiresNotes && !String(f.notes || "").trim()) {
+        return `Vantar athugasemdir fyrir "${p.name}".`;
+      }
     }
 
-    return true;
+    return "";
   }, [
-    items.length,
-    agreeTerms,
+    items,
     buyerName,
     buyerEmail,
+    agreeTerms,
     useGrant,
     eligibleSubtotal,
     appliedGrant,
@@ -256,6 +259,8 @@ export default function Checkout() {
     registrationItems,
     regForms,
   ]);
+
+  const canSubmit = useMemo(() => validationMessage === "", [validationMessage]);
 
   useEffect(() => {
     const cancelled = query.get("cancelled");
@@ -820,6 +825,12 @@ export default function Checkout() {
                     {submitting ? "Sendi..." : "Greiða og klára skráningu"}
                   </button>
 
+                  {!canSubmit && validationMessage ? (
+                    <div className="mt-3 rounded-2xl border bg-amber-50 p-3 text-xs font-semibold text-amber-800">
+                      {validationMessage}
+                    </div>
+                  ) : null}
+
                   {submitError ? (
                     <div className="mt-3 text-xs font-semibold text-red-700">{submitError}</div>
                   ) : null}
@@ -840,13 +851,10 @@ export default function Checkout() {
             </div>
 
             <div className="rounded-2xl border bg-white p-6 shadow-sm">
-              <div className="text-xs uppercase tracking-wider text-zinc-500">Aðgangur</div>
-              <Link
-                to={`/c/${clubSlug}/account/orders`}
-                className="mt-2 inline-flex w-full items-center justify-center rounded-2xl border bg-white px-4 py-2 text-sm font-semibold hover:bg-zinc-50"
-              >
-                Fara í kaupsögu
-              </Link>
+              <div className="text-xs uppercase tracking-wider text-zinc-500">Upplýsingar</div>
+              <div className="mt-2 text-sm text-zinc-700">
+                Kaupsaga er aðeins sýnd fyrir innskráða notendur. Kláraðu greiðslu hér fyrst.
+              </div>
             </div>
           </div>
         </aside>

@@ -362,6 +362,9 @@ export default function Checkout() {
   }
 
   return (
+<div className="rounded-2xl bg-red-600 p-4 text-white font-bold">
+  TEST CHECKOUT VERSION 999
+</div>
     <ClubShell
       clubSlug={clubSlug}
       cartCount={items.length}

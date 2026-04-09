@@ -4,7 +4,6 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import ClubShell from "../components/layout/ClubShell";
 import { createStripeCheckoutSession } from "../api/orders";
-
 function Field({ label, children, hint }) {
   return (
     <label className="block">

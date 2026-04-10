@@ -830,7 +830,16 @@ app.patch("/api/clubs/:clubSlug/orders/:orderId/payment", async (req, res) => {
   }
 });
 
-app.get("/api/clubs/:clubSlug/orders/:orderId/public", async (req, res) => {
+res.json({
+  order_id: order.order_id,
+  status: order.status,
+  payment_status: order.payment?.status,
+  buyer_email: order.buyer_email,
+  total_amount: order.total_amount,
+  items: order.body?.items || [],
+  registrations: order.body?.registrations || [],
+  created_at: order.created_at,
+});
   try {
     const order = await getOrder(req.params.clubSlug, req.params.orderId);
 

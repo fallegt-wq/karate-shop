@@ -129,6 +129,38 @@ export default function Checkout() {
 
   const hasRegistration = registrationItems.length > 0;
 
+  useEffect(() => {
+    if (!registrationItems.length) return;
+
+    setRegForms((prev) => {
+      let changed = false;
+      const next = { ...prev };
+
+      for (const item of registrationItems) {
+        const existing = next[item.cartId] || {};
+        const prefill = item.prefill || {};
+
+        const merged = {
+          athleteName: existing.athleteName || String(prefill.athleteName || ""),
+          athleteDob: existing.athleteDob || String(prefill.athleteDob || ""),
+          guardianName: existing.guardianName || String(prefill.guardianName || ""),
+          notes: existing.notes || String(prefill.notes || ""),
+          kennitala: existing.kennitala || String(prefill.kennitala || ""),
+        };
+
+        const before = JSON.stringify(existing);
+        const after = JSON.stringify(merged);
+
+        if (before !== after) {
+          next[item.cartId] = merged;
+          changed = true;
+        }
+      }
+
+      return changed ? next : prev;
+    });
+  }, [registrationItems]);
+
   const eligibleGrantItems = useMemo(() => {
     return registrationItems.filter((x) => {
       const weeks = Number(x.durationWeeks || 0);

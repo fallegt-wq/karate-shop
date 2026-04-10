@@ -1,7 +1,7 @@
-// src/pages/RegistrationSuccessPage.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { getOrderPublic } from "../api/orders";
+import { useCart } from "../context/CartContext";
 
 function useQuery() {
   return new URLSearchParams(useLocation().search);
@@ -46,15 +46,20 @@ function getStatusLabel(order, loading) {
   return "Vinn í pöntun";
 }
 
+const CHECKOUT_PENDING_STORAGE_KEY = "checkout_pending_order";
+
 export default function RegistrationSuccessPage() {
   const { clubSlug } = useParams();
   const query = useQuery();
   const orderId = query.get("orderId");
+  const { clear } = useCart();
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [attempts, setAttempts] = useState(0);
   const [error, setError] = useState("");
+
+  const didCleanupRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +106,25 @@ export default function RegistrationSuccessPage() {
       if (timeoutId) window.clearTimeout(timeoutId);
     };
   }, [clubSlug, orderId, attempts]);
+
+  useEffect(() => {
+    if (!isOrderReady(order)) return;
+    if (didCleanupRef.current) return;
+
+    didCleanupRef.current = true;
+
+    try {
+      clear();
+    } catch {
+      // ignore cart clear failure
+    }
+
+    try {
+      sessionStorage.removeItem(CHECKOUT_PENDING_STORAGE_KEY);
+    } catch {
+      // ignore storage failure
+    }
+  }, [order, clear]);
 
   const registrations = useMemo(() => {
     if (!order?.registrations?.length) return [];
@@ -254,6 +278,12 @@ export default function RegistrationSuccessPage() {
                               Athugasemdir: {reg.notes}
                             </div>
                           ) : null}
+
+                          {reg.kennitala ? (
+                            <div className="mt-1 text-xs text-zinc-500">
+                              Kennitala: {reg.kennitala}
+                            </div>
+                          ) : null}
                         </div>
                       ))}
                     </div>
@@ -263,7 +293,7 @@ export default function RegistrationSuccessPage() {
 
               <div className="mt-8 rounded-2xl border bg-green-50 p-4 text-sm text-green-800">
                 {isOrderReady(order)
-                  ? "Greiðsla hefur verið staðfest og skráning er komin í vinnslu eða fullkláruð í kerfinu."
+                  ? "Greiðsla hefur verið staðfest, karfan hefur verið tæmd og skráning er komin í vinnslu eða fullkláruð í kerfinu."
                   : "Greiðslan virðist hafa farið í gegn, en kerfið er enn að klára síðustu skrefin."}
               </div>
             </>

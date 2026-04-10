@@ -71,7 +71,7 @@ const clientDistPath = path.join(projectRoot, "dist");
 const clientIndexPath = path.join(clientDistPath, "index.html");
 
 const PORT = Number(process.env.PORT || 5174);
-const FRONTEND_URL = String(process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
+const FRONTEND_URL = String(process.env.FRONTEND_URL || "").trim().replace(/\/$/, "");
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const SESSION_COOKIE_NAME = String(process.env.SESSION_COOKIE_NAME || "session");
 const SESSION_COOKIE_SAMESITE = String(process.env.SESSION_COOKIE_SAMESITE || "Lax");
@@ -84,7 +84,7 @@ const SESSION_COOKIE_SECURE =
     ? IS_PRODUCTION
     : ["1", "true", "yes"].includes(COOKIE_SECURE.toLowerCase());
 const TRUST_PROXY = Number(process.env.TRUST_PROXY || (IS_PRODUCTION ? 1 : 0));
-const CORS_ORIGIN = process.env.CORS_ORIGIN || FRONTEND_URL;
+const CORS_ORIGIN = process.env.CORS_ORIGIN || FRONTEND_URL || "http://localhost:5173";
 
 if (TRUST_PROXY > 0) {
   app.set("trust proxy", TRUST_PROXY);
@@ -111,9 +111,7 @@ initIðkendaSchema();
 initRegistrationTables();
 
 const bootstrapDb = getSqliteDb();
-const dojoClub = bootstrapDb
-  .prepare("SELECT id FROM clubs WHERE slug = ?")
-  .get("dojo");
+const dojoClub = bootstrapDb.prepare("SELECT id FROM clubs WHERE slug = ?").get("dojo");
 
 if (dojoClub) {
   bootstrapDb
@@ -122,6 +120,36 @@ if (dojoClub) {
       VALUES (?, ?, ?, 1)
     `)
     .run(dojoClub.id, "fallegt@gmail.com", "Admin");
+}
+
+/* ==========================
+   URL HELPERS
+   ========================== */
+
+function normalizeUrlBase(value) {
+  return String(value || "").trim().replace(/\/$/, "");
+}
+
+function getAppBaseUrl(req) {
+  const originHeader = normalizeUrlBase(req.get("origin"));
+  if (originHeader) return originHeader;
+
+  const forwardedProto = normalizeUrlBase(req.get("x-forwarded-proto"));
+  const forwardedHost = normalizeUrlBase(req.get("x-forwarded-host"));
+  const host = normalizeUrlBase(req.get("host"));
+
+  const proto = forwardedProto || req.protocol || (IS_PRODUCTION ? "https" : "http");
+  const hostname = forwardedHost || host;
+
+  if (hostname) {
+    return `${proto}://${hostname}`.replace(/\/$/, "");
+  }
+
+  if (FRONTEND_URL) {
+    return FRONTEND_URL;
+  }
+
+  return "http://localhost:5173";
 }
 
 /* ==========================
@@ -307,14 +335,12 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
       if (orderId) {
         const db = getSqliteDb();
         const orderRow = db
-          .prepare(
-            `
+          .prepare(`
             SELECT club_slug, order_id
             FROM orders
             WHERE order_id = ?
             LIMIT 1
-          `
-          )
+          `)
           .get(orderId);
 
         if (orderRow?.club_slug) {
@@ -635,14 +661,20 @@ app.post("/api/clubs/:clubSlug/checkout/stripe", async (req, res) => {
 
     const order = await createOrder(clubSlug, payload, buyerEmail);
 
+    const appBaseUrl = getAppBaseUrl(req);
     const successUrl =
-      `${FRONTEND_URL}/c/${clubSlug}/registration/success?orderId=${encodeURIComponent(order.order_id)}`;
-
+      `${appBaseUrl}/c/${clubSlug}/registration/success?orderId=${encodeURIComponent(order.order_id)}`;
     const cancelUrl =
-      `${FRONTEND_URL}/c/${clubSlug}/checkout?cancelled=true`;
+      `${appBaseUrl}/c/${clubSlug}/checkout?cancelled=true`;
+
+    console.log("FRONTEND_URL env =", FRONTEND_URL || "(empty)");
+    console.log("Request origin =", req.get("origin") || "(empty)");
+    console.log("Stripe appBaseUrl =", appBaseUrl);
+    console.log("Stripe successUrl =", successUrl);
+    console.log("Stripe cancelUrl =", cancelUrl);
 
     const session = await stripe.checkout.sessions.create({
-     payment_method_types: ["card"],
+      payment_method_types: ["card"],
       mode: "payment",
       customer_email: buyerEmail,
       line_items: [
@@ -650,9 +682,7 @@ app.post("/api/clubs/:clubSlug/checkout/stripe", async (req, res) => {
           price_data: {
             currency: "isk",
             product_data: {
-              name: buyerName
-                ? `Skráning - ${buyerName}`
-                : "Skráning",
+              name: buyerName ? `Skráning - ${buyerName}` : "Skráning",
             },
             unit_amount: Math.round(totalAmount * 100),
           },
@@ -799,6 +829,7 @@ app.patch("/api/clubs/:clubSlug/orders/:orderId/payment", async (req, res) => {
     res.status(400).json({ error: "BAD_REQUEST", message: e?.message || "Invalid payment" });
   }
 });
+
 app.get("/api/clubs/:clubSlug/orders/:orderId/public", async (req, res) => {
   try {
     const order = await getOrder(req.params.clubSlug, req.params.orderId);
@@ -821,6 +852,7 @@ app.get("/api/clubs/:clubSlug/orders/:orderId/public", async (req, res) => {
     res.status(500).json({ error: "SERVER_ERROR" });
   }
 });
+
 /* ==========================
    USER: list latest notifications
    ========================== */
@@ -831,8 +863,8 @@ app.get("/api/clubs/:clubSlug/notifications", requireSession, (req, res) => {
     const userId = String(req.user?.id || req.user?.email || "").trim();
 
     const notifications = db
-      .prepare(
-        `SELECT
+      .prepare(`
+        SELECT
           id,
           user_id,
           type,
@@ -843,8 +875,8 @@ app.get("/api/clubs/:clubSlug/notifications", requireSession, (req, res) => {
         FROM notifications
         WHERE user_id = ?
         ORDER BY datetime(created_at) DESC, id DESC
-        LIMIT 50`
-      )
+        LIMIT 50
+      `)
       .all(userId);
 
     res.json({ notifications });

@@ -28,9 +28,6 @@ const LazyAdminRegistrations = React.lazy(() =>
   import("./pages/admin/AdminRegistrations.jsx")
 );
 
-const LazyRegistrationCheckoutPage = React.lazy(() =>
-  import("./pages/RegistrationCheckoutPage.jsx")
-);
 const LazyRegistrationSuccessPage = React.lazy(() =>
   import("./pages/RegistrationSuccessPage.jsx")
 );
@@ -154,6 +151,11 @@ function RequireSession({ children }) {
   return children;
 }
 
+function LegacyRegistrationCheckoutRedirect() {
+  const { clubSlug } = useParams();
+  return <Navigate to={`/c/${clubSlug}/checkout`} replace />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -190,13 +192,7 @@ export default function App() {
           path="/c/:clubSlug/registration/checkout"
           element={
             <RouteShell>
-              <RequireSession>
-                <ErrorBoundary>
-                  <SuspenseWrap label="Registration Checkout">
-                    <LazyRegistrationCheckoutPage />
-                  </SuspenseWrap>
-                </ErrorBoundary>
-              </RequireSession>
+              <LegacyRegistrationCheckoutRedirect />
             </RouteShell>
           }
         />
@@ -205,12 +201,12 @@ export default function App() {
           path="/c/:clubSlug/registration/success"
           element={
             <RouteShell>
-                              <ErrorBoundary>
-                  <SuspenseWrap label="Registration Success">
-                    <LazyRegistrationSuccessPage />
-                  </SuspenseWrap>
-                </ErrorBoundary>
-                          </RouteShell>
+              <ErrorBoundary>
+                <SuspenseWrap label="Registration Success">
+                  <LazyRegistrationSuccessPage />
+                </SuspenseWrap>
+              </ErrorBoundary>
+            </RouteShell>
           }
         />
 

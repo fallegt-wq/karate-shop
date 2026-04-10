@@ -4,6 +4,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import ClubShell from "../components/layout/ClubShell";
 import { createStripeCheckoutSession } from "../api/orders";
+
 function Field({ label, children, hint }) {
   return (
     <label className="block">
@@ -93,7 +94,7 @@ export default function Checkout() {
   const { clubSlug } = useParams();
   const location = useLocation();
   const query = useQuery();
-  const { items, remove, total, clear } = useCart();
+  const { items, remove, total } = useCart();
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -216,7 +217,9 @@ export default function Checkout() {
       if (eligibleSubtotal <= 0) return "Engin styrkhæf námskeið eru í körfu.";
       if (appliedGrant <= 0) return "Veldu upphæð frístundastyrks.";
       if (!municipality.trim()) return "Veldu sveitarfélag.";
-      if (!grantAgeCheck.ok) return grantAgeCheck.message || "Frístundastyrkur stenst ekki skilyrði.";
+      if (!grantAgeCheck.ok) {
+        return grantAgeCheck.message || "Frístundastyrkur stenst ekki skilyrði.";
+      }
       if (!eidVerified) return "Þú þarft að staðfesta rafræn skilríki (demo).";
       if (!loginRequirementOk) return "Þú þarft að velja rétta innskráningu.";
     }
@@ -264,7 +267,9 @@ export default function Checkout() {
   useEffect(() => {
     const cancelled = query.get("cancelled");
     if (cancelled === "true") {
-      setSubmitError("Greiðslu var hætt við. Karfan hefur ekki verið tæmd og þú getur reynt aftur.");
+      setSubmitError(
+        "Greiðslu var hætt við. Karfan hefur ekki verið tæmd og þú getur reynt aftur."
+      );
     }
   }, [location.search, query]);
 
@@ -347,7 +352,10 @@ export default function Checkout() {
           orderId: session?.orderId || null,
           createdAt: new Date().toISOString(),
         };
-        sessionStorage.setItem(CHECKOUT_PENDING_STORAGE_KEY, JSON.stringify(pending));
+        sessionStorage.setItem(
+          CHECKOUT_PENDING_STORAGE_KEY,
+          JSON.stringify(pending)
+        );
       } catch {
         // ignore storage failure
       }
@@ -361,19 +369,12 @@ export default function Checkout() {
     }
   }
 
-return (
-  <>
-    <div className="rounded-2xl bg-red-600 p-4 text-white font-bold">
-      TEST CHECKOUT VERSION 999
-    </div>
-
+  return (
     <ClubShell
       clubSlug={clubSlug}
       cartCount={items.length}
       title="Checkout"
       subtitle="Greiðsla og skráning"
-      ...
-    >
       rightSlot={
         <Link
           to={`/c/${clubSlug}`}
@@ -439,7 +440,10 @@ return (
                 {registrationItems.map((p, idx) => {
                   const schema = p.registration || {};
                   const f = regForms[p.cartId] || {};
-                  const res = isEligibleByYearRule(String(f.athleteDob || ""), currentYear);
+                  const res = isEligibleByYearRule(
+                    String(f.athleteDob || ""),
+                    currentYear
+                  );
                   const by = res.birthYear;
 
                   const label =
@@ -460,10 +464,13 @@ return (
                           <div className="text-xs uppercase tracking-wider text-zinc-500">
                             Vara {idx + 1}
                           </div>
-                          <div className="truncate font-semibold text-zinc-900">{p.name}</div>
+                          <div className="truncate font-semibold text-zinc-900">
+                            {p.name}
+                          </div>
                           <div className="mt-1 text-xs text-zinc-500">
                             Vikur: {Number(p.durationWeeks || 0)}
-                            {p.leisureGrantEligible && Number(p.durationWeeks || 0) >= 8
+                            {p.leisureGrantEligible &&
+                            Number(p.durationWeeks || 0) >= 8
                               ? " • Styrkhæf skv. lengd"
                               : ""}
                           </div>
@@ -596,7 +603,8 @@ return (
               </label>
 
               <div className="rounded-2xl bg-zinc-50 p-4 text-sm text-zinc-700">
-                Styrkhæft samtals: <span className="font-semibold">{formatISK(eligibleSubtotal)}</span>
+                Styrkhæft samtals:{" "}
+                <span className="font-semibold">{formatISK(eligibleSubtotal)}</span>
               </div>
 
               {useGrant ? (
@@ -696,7 +704,8 @@ return (
                       </button>
                     </div>
 
-                    {grantAgeCheck.needsParticipantLogin && loginAs !== "PARTICIPANT" ? (
+                    {grantAgeCheck.needsParticipantLogin &&
+                    loginAs !== "PARTICIPANT" ? (
                       <div className="mt-3 rounded-2xl border bg-red-50 p-3 text-xs font-semibold text-red-700">
                         Veldu “Iðkandi (18 ára)” til að halda áfram.
                       </div>
@@ -752,16 +761,6 @@ return (
                   <div className="text-xs uppercase tracking-wider text-zinc-500">Yfirlit</div>
                   <div className="mt-1 text-lg font-semibold text-zinc-900">Karfan</div>
                 </div>
-
-                {items.length ? (
-                  <button
-                    type="button"
-                    onClick={clear}
-                    className="text-sm font-semibold text-red-700 hover:text-red-800"
-                  >
-                    Hreinsa
-                  </button>
-                ) : null}
               </div>
 
               {!items.length ? (
@@ -838,7 +837,9 @@ return (
                   ) : null}
 
                   {submitError ? (
-                    <div className="mt-3 text-xs font-semibold text-red-700">{submitError}</div>
+                    <div className="mt-3 text-xs font-semibold text-red-700">
+                      {submitError}
+                    </div>
                   ) : null}
 
                   {successMessage ? (

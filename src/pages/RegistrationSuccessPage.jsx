@@ -1,9 +1,19 @@
+// src/pages/RegistrationSuccessPage.jsx
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { getOrderPublic } from "../api/orders";
 
 function useQuery() {
   return new URLSearchParams(useLocation().search);
+}
+
+function isOrderReady(order) {
+  if (!order) return false;
+
+  const paymentStatus = String(order.payment_status || "").toUpperCase();
+  const status = String(order.status || "").toUpperCase();
+
+  return paymentStatus === "PAID" || status === "FULFILLED";
 }
 
 export default function RegistrationSuccessPage() {
@@ -14,22 +24,50 @@ export default function RegistrationSuccessPage() {
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [attempts, setAttempts] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
+      if (!orderId) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        if (!orderId) return;
         const data = await getOrderPublic(clubSlug, orderId);
+
+        if (cancelled) return;
+
         setOrder(data);
+
+        // 🔥 ef order er tilbúin → hætta polling
+        if (isOrderReady(data)) {
+          setLoading(false);
+          return;
+        }
+
+        // 🔁 retry (max ~10 sek)
+        if (attempts < 10) {
+          setTimeout(() => {
+            setAttempts((a) => a + 1);
+          }, 1000);
+        } else {
+          setLoading(false);
+        }
       } catch (e) {
         console.error(e);
-      } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     load();
-  }, [clubSlug, orderId]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clubSlug, orderId, attempts]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -42,22 +80,24 @@ export default function RegistrationSuccessPage() {
             Greiðsla staðfest
           </h1>
 
-          {loading && <div>Sæki upplýsingar...</div>}
+          {loading && (
+            <div className="text-sm text-gray-600 mt-4">
+              Klára skráningu...
+            </div>
+          )}
 
-          {order && (
+          {!loading && order && (
             <>
               <div className="mt-4 text-sm text-gray-600">
                 <div>Pöntun: {order.order_id}</div>
                 <div>Netfang: {order.buyer_email}</div>
-                <div>
-                  Upphæð: {order.total_amount} kr.
-                </div>
+                <div>Upphæð: {order.total_amount} kr.</div>
               </div>
 
               <div className="mt-6 text-left">
                 <div className="font-semibold mb-2">Skráningar:</div>
                 <ul className="space-y-2">
-                  {order.items?.map((i, idx) => (
+                  {(order.items || []).map((i, idx) => (
                     <li key={idx} className="border rounded p-2">
                       {i.name} — {i.price} kr.
                     </li>
@@ -65,6 +105,12 @@ export default function RegistrationSuccessPage() {
                 </ul>
               </div>
             </>
+          )}
+
+          {!loading && !order && (
+            <div className="text-red-600 mt-4 text-sm">
+              Gat ekki sótt pöntun.
+            </div>
           )}
 
           <div className="mt-8 flex gap-3 justify-center">

@@ -840,16 +840,7 @@ app.patch("/api/clubs/:clubSlug/orders/:orderId/payment", async (req, res) => {
   }
 });
 
-res.json({
-  order_id: order.order_id,
-  status: order.status,
-  payment_status: order.payment?.status,
-  buyer_email: order.buyer_email,
-  total_amount: order.total_amount,
-  items: order.body?.items || [],
-  registrations: order.body?.registrations || [],
-  created_at: order.created_at,
-});
+app.get("/api/clubs/:clubSlug/orders/:orderId/public", async (req, res) => {
   try {
     const order = await getOrder(req.params.clubSlug, req.params.orderId);
 
@@ -857,10 +848,29 @@ res.json({
       return res.status(404).json({ error: "NOT_FOUND" });
     }
 
+    const status = String(order.status || "").toUpperCase();
+    const paymentStatus = String(order.payment?.status || "").toUpperCase();
+
+    const isPaid = paymentStatus === "PAID";
+    const isFulfilled = status === "FULFILLED";
+    const isProcessing = isPaid && !isFulfilled;
+    const isReady = isPaid || isFulfilled;
+
     res.json({
       order_id: order.order_id,
       status: order.status,
       payment_status: order.payment?.status,
+      processing_status: isFulfilled
+        ? "FULFILLED"
+        : isProcessing
+        ? "PROCESSING"
+        : isPaid
+        ? "PAID"
+        : "PENDING",
+      is_paid: isPaid,
+      is_fulfilled: isFulfilled,
+      is_processing: isProcessing,
+      is_ready: isReady,
       buyer_email: order.buyer_email,
       total_amount: order.total_amount,
       items: order.body?.items || [],

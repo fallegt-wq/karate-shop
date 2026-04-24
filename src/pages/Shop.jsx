@@ -4,6 +4,8 @@ import { Link, useParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { PRODUCTS } from "../data/products";
 
+const MAX_PRICE_ISK = 50000;
+
 async function getMeSafe() {
   try {
     const res = await fetch("/api/me", { method: "GET", credentials: "include" });
@@ -23,6 +25,19 @@ async function logoutSafe() {
   }
 }
 
+function formatISK(value) {
+  const amount = Number(value || 0);
+  try {
+    return new Intl.NumberFormat("is-IS", {
+      style: "currency",
+      currency: "ISK",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `${amount} kr.`;
+  }
+}
+
 function ProductCard({ p, onAdd }) {
   const placeholder = "/images/placeholder.png";
   const src = p.image || placeholder;
@@ -35,8 +50,7 @@ function ProductCard({ p, onAdd }) {
     isTraining && p.leisureGrantEligible === true && weeks > 0 && weeks < 8;
 
   return (
-    <div className="group rounded-2xl border bg-white shadow-sm overflow-hidden">
-      {/* FASTUR MYNDARAMMI – stoppar blikk */}
+    <div className="group overflow-hidden rounded-2xl border bg-white shadow-sm">
       <div className="relative aspect-[4/3] bg-gray-100">
         <img
           src={src}
@@ -56,14 +70,15 @@ function ProductCard({ p, onAdd }) {
             <div className="text-xs text-gray-500">
               {p.brand || (isTraining ? "Training" : "—")}
             </div>
-            <div className="mt-1 font-semibold leading-snug text-zinc-900 truncate">
+            <div className="mt-1 truncate font-semibold leading-snug text-zinc-900">
               {p.name}
             </div>
           </div>
-          <div className="shrink-0 font-semibold text-red-700">${p.price}</div>
+          <div className="shrink-0 font-semibold text-red-700">
+            {formatISK(p.price)}
+          </div>
         </div>
 
-        {/* Training info */}
         {isTraining ? (
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full border bg-white px-2.5 py-1 font-semibold text-zinc-700">
@@ -98,10 +113,11 @@ function ProductCard({ p, onAdd }) {
         )}
 
         <button
+          type="button"
           onClick={() => onAdd(p)}
-          className="mt-4 w-full rounded-xl bg-red-700 py-3 text-white font-semibold hover:bg-red-800 transition"
+          className="mt-4 w-full rounded-xl bg-red-700 py-3 font-semibold text-white transition hover:bg-red-800"
         >
-          Add to cart
+          Setja í körfu
         </button>
       </div>
     </div>
@@ -112,21 +128,18 @@ export default function Shop() {
   const { clubSlug } = useParams();
   const { items, add } = useCart();
 
-  // Tabs: "ALL" | "MERCH" | "TRAINING"
   const [tab, setTab] = useState("ALL");
-
-  // Filters
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("All");
   const [brand, setBrand] = useState("All");
-const [maxPrice, setMaxPrice] = useState(50000);
+  const [maxPrice, setMaxPrice] = useState(MAX_PRICE_ISK);
 
-  // Session
   const [me, setMe] = useState(null);
   const [loadingMe, setLoadingMe] = useState(true);
 
   useEffect(() => {
     let alive = true;
+
     (async () => {
       setLoadingMe(true);
       const u = await getMeSafe();
@@ -134,25 +147,25 @@ const [maxPrice, setMaxPrice] = useState(50000);
       setMe(u);
       setLoadingMe(false);
     })();
+
     return () => {
       alive = false;
     };
   }, [clubSlug]);
 
   const loggedIn = !!me?.email;
-
-  // IMPORTANT: "Mitt svæði" should go to login page (and after login, come back to /account)
   const nextAccount = `/c/${clubSlug}/account`;
   const loginHref = `/c/${clubSlug}/account/login?next=${encodeURIComponent(
     nextAccount
   )}`;
 
-  // Build filter dropdown options based on current tab selection (nice UX)
   const productsForTab = useMemo(() => {
-    if (tab === "MERCH")
+    if (tab === "MERCH") {
       return PRODUCTS.filter((p) => (p.type || "MERCH") === "MERCH");
-    if (tab === "TRAINING")
+    }
+    if (tab === "TRAINING") {
       return PRODUCTS.filter((p) => p.type === "REGISTRATION");
+    }
     return PRODUCTS;
   }, [tab]);
 
@@ -183,21 +196,25 @@ const [maxPrice, setMaxPrice] = useState(50000);
     });
   }, [productsForTab, q, category, brand, maxPrice]);
 
+  function resetFilters() {
+    setCategory("All");
+    setBrand("All");
+    setMaxPrice(MAX_PRICE_ISK);
+    setQ("");
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* HEADER */}
       <div className="border-b bg-white">
         <div className="mx-auto max-w-6xl px-4 py-5">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
               <div className="text-sm text-gray-500">Club</div>
-              <div className="text-lg font-semibold text-zinc-900 truncate">
+              <div className="truncate text-lg font-semibold text-zinc-900">
                 {clubSlug}
               </div>
 
-              {/* 1) Vefsala opin öllum  2) Mitt svæði fyrir innskráða */}
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                {/* CHANGED: Mitt svæði -> login */}
                 <a
                   href={loginHref}
                   className="rounded-xl border bg-white px-3 py-2 text-sm font-semibold hover:bg-gray-50"
@@ -210,10 +227,10 @@ const [maxPrice, setMaxPrice] = useState(50000);
                 ) : loggedIn ? (
                   <>
                     <span className="text-xs text-gray-700">
-                      Innskráður:{" "}
-                      <span className="font-semibold">{me.email}</span>
+                      Innskráður: <span className="font-semibold">{me.email}</span>
                     </span>
                     <button
+                      type="button"
                       onClick={async () => {
                         await logoutSafe();
                         window.location.reload();
@@ -241,13 +258,12 @@ const [maxPrice, setMaxPrice] = useState(50000);
               className="rounded-xl border bg-white px-4 py-2 text-sm font-semibold hover:bg-gray-50"
             >
               Cart
-              <span className="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-700 text-white text-xs">
+              <span className="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-700 text-xs text-white">
                 {items.length}
               </span>
             </Link>
           </div>
 
-          {/* Tabs */}
           <div className="mt-5 flex flex-wrap gap-2">
             {[
               { key: "ALL", label: "Allt" },
@@ -259,15 +275,12 @@ const [maxPrice, setMaxPrice] = useState(50000);
                 type="button"
                 onClick={() => {
                   setTab(t.key);
-                  setCategory("All");
-                  setBrand("All");
-                  setMaxPrice(300);
-                  setQ("");
+                  resetFilters();
                 }}
                 className={[
-                  "rounded-full px-4 py-2 text-sm font-semibold border transition",
+                  "rounded-full border px-4 py-2 text-sm font-semibold transition",
                   tab === t.key
-                    ? "bg-zinc-900 text-white border-zinc-900"
+                    ? "border-zinc-900 bg-zinc-900 text-white"
                     : "bg-white text-zinc-900 hover:bg-zinc-50",
                 ].join(" ")}
               >
@@ -276,8 +289,7 @@ const [maxPrice, setMaxPrice] = useState(50000);
             ))}
           </div>
 
-          {/* Search */}
-          <div className="mt-4 relative">
+          <div className="relative mt-4">
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -291,7 +303,6 @@ const [maxPrice, setMaxPrice] = useState(50000);
         </div>
       </div>
 
-      {/* BODY */}
       <div className="mx-auto max-w-6xl px-4 py-8">
         <div className="flex items-end justify-between gap-4">
           <h1 className="text-2xl font-bold text-zinc-900">
@@ -305,15 +316,14 @@ const [maxPrice, setMaxPrice] = useState(50000);
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-12">
-          {/* FILTERS */}
           <aside className="md:col-span-4 lg:col-span-3">
-            <div className="rounded-2xl border bg-white p-5 shadow-sm space-y-4">
-              <div className="font-semibold text-sm text-zinc-900">Filters</div>
+            <div className="space-y-4 rounded-2xl border bg-white p-5 shadow-sm">
+              <div className="text-sm font-semibold text-zinc-900">Filters</div>
 
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                className="w-full rounded-xl border bg-white px-3 py-2 text-sm"
               >
                 {categories.map((c) => (
                   <option key={c}>{c}</option>
@@ -323,7 +333,7 @@ const [maxPrice, setMaxPrice] = useState(50000);
               <select
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
-                className="w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                className="w-full rounded-xl border bg-white px-3 py-2 text-sm"
               >
                 {brands.map((b) => (
                   <option key={b}>{b}</option>
@@ -331,26 +341,26 @@ const [maxPrice, setMaxPrice] = useState(50000);
               </select>
 
               <div>
-            <input
-  type="range"
-  min={0}
-  max={50000}
+                <input
+                  type="range"
+                  min={0}
+                  max={MAX_PRICE_ISK}
+                  step={500}
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(Number(e.target.value))}
                   className="w-full"
                 />
-                <div className="text-sm text-gray-600 mt-1">
-                  Up to <span className="font-semibold">{maxPrice.toLocaleString("is-IS")} kr.</span>
+                <div className="mt-1 text-sm text-gray-600">
+                  Allt að{" "}
+                  <span className="font-semibold">
+                    {maxPrice.toLocaleString("is-IS")} kr.
+                  </span>
                 </div>
               </div>
 
               <button
-                onClick={() => {
-                  setCategory("All");
-                  setBrand("All");
-                  setMaxPrice(300);
-                  setQ("");
-                }}
+                type="button"
+                onClick={resetFilters}
                 className="w-full rounded-xl border py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
               >
                 Reset filters
@@ -358,11 +368,10 @@ const [maxPrice, setMaxPrice] = useState(50000);
             </div>
           </aside>
 
-          {/* PRODUCTS */}
           <section className="md:col-span-8 lg:col-span-9">
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.map((p) => (
-                <ProductCard key={`${p.id}`} p={p} onAdd={add} />
+                <ProductCard key={p.id} p={p} onAdd={add} />
               ))}
             </div>
           </section>

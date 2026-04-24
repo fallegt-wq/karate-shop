@@ -456,8 +456,6 @@ app.get("/api/clubs/:clubSlug/orders/:orderId/public", async (req, res) => {
     res.status(500).json({ error: "SERVER_ERROR" });
   }
 });
-});
-
 app.get("/api/clubs/:clubSlug/public", (req, res) => {
   try {
     const club = getClubPublicBySlug(req.params.clubSlug);

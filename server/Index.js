@@ -1199,14 +1199,10 @@ app.post("/api/clubs/:clubSlug/club/messages/groups/:groupId/messages", requireS
   }
 });
 
-if (IS_PRODUCTION && fs.existsSync(clientDistPath)) {
+if (fs.existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath));
 
-  app.get(/^\/(?!api\/).*/, (req, res, next) => {
-    if (!fs.existsSync(clientIndexPath)) {
-      return next();
-    }
-
+  app.get(/^\/(?!api\/).*/, (req, res) => {
     return res.sendFile(clientIndexPath);
   });
 }

@@ -129,7 +129,9 @@ if (dojoClub) {
 function normalizeUrlBase(value) {
   return String(value || "").trim().replace(/\/$/, "");
 }
-
+function getAppBaseUrl(req) {
+  return "https://karate-shop-app.onrender.com";
+}
 /* ==========================
    SIMPLE COOKIE PARSER (NO DEPENDENCY)
    ========================== */

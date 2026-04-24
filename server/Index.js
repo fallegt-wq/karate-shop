@@ -1199,8 +1199,6 @@ app.post("/api/clubs/:clubSlug/club/messages/groups/:groupId/messages", requireS
   }
 });
 
-if (fs.existsSync(clientDistPath)) {
-  app.use(express.static(clientDistPath));
 app.use(express.static(clientDistPath));
 
 app.get(/^\/(?!api\/).*/, (req, res) => {
@@ -1210,4 +1208,3 @@ app.get(/^\/(?!api\/).*/, (req, res) => {
 app.listen(PORT, () => {
   console.log(`API listening on http://localhost:${PORT}`);
 });
- 

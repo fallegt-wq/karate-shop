@@ -130,25 +130,6 @@ function normalizeUrlBase(value) {
   return String(value || "").trim().replace(/\/$/, "");
 }
 
-function getAppBaseUrl(req) {
-  return "https://karate-shop-app.onrender.com";
-}
-
-  const originHeader = normalizeUrlBase(req.get("origin"));
-  const forwardedProto = normalizeUrlBase(req.get("x-forwarded-proto"));
-  const forwardedHost = normalizeUrlBase(req.get("x-forwarded-host"));
-  const host = normalizeUrlBase(req.get("host"));
-
-  const proto = forwardedProto || req.protocol || (IS_PRODUCTION ? "https" : "http");
-  const hostname = forwardedHost || host;
-
-  if (hostname) {
-    return `${proto}://${hostname}`.replace(/\/$/, "");
-  }
-
-  return "http://localhost:5173";
-}
-
 /* ==========================
    SIMPLE COOKIE PARSER (NO DEPENDENCY)
    ========================== */

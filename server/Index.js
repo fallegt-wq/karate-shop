@@ -131,11 +131,7 @@ function normalizeUrlBase(value) {
 }
 
 function getAppBaseUrl(req) {
-  if (FRONTEND_URL) {
-    return FRONTEND_URL;
-  }
-
-  return "http://localhost:5173";
+  return "https://karate-shop-app.onrender.com";
 }
 
   const originHeader = normalizeUrlBase(req.get("origin"));

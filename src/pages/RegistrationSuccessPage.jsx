@@ -3,6 +3,8 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { getOrderPublic } from "../api/orders";
 import { useCart } from "../context/CartContext";
 
+const CHECKOUT_PENDING_STORAGE_KEY = "checkout_pending_order";
+
 function useQuery() {
   return new URLSearchParams(useLocation().search);
 }
@@ -20,33 +22,19 @@ function formatISK(value) {
   }
 }
 
-function normalizeUpper(value) {
-  return String(value || "").trim().toUpperCase();
-}
-
 function isOrderReady(order) {
-  if (!order) return false;
-
-  const paymentStatus = normalizeUpper(order.payment_status);
-  const status = normalizeUpper(order.status);
-
-  return paymentStatus === "PAID" || status === "FULFILLED";
+  return Boolean(order?.is_ready || order?.is_paid || order?.is_fulfilled);
 }
 
 function getStatusLabel(order, loading) {
   if (loading) return "Klára skráningu...";
   if (!order) return "Pöntun fannst ekki";
 
-  const paymentStatus = normalizeUpper(order.payment_status);
-  const status = normalizeUpper(order.status);
-
-  if (status === "FULFILLED") return "Skráning kláruð";
-  if (paymentStatus === "PAID") return "Greiðsla staðfest";
-  if (paymentStatus === "UNPAID") return "Bíð eftir staðfestingu";
-  return "Vinn í pöntun";
+  if (order.is_fulfilled) return "Skráning fullkláruð";
+  if (order.is_processing) return "Greiðsla staðfest — klára skráningu";
+  if (order.is_paid) return "Greiðsla staðfest";
+  return "Bíð eftir staðfestingu";
 }
-
-const CHECKOUT_PENDING_STORAGE_KEY = "checkout_pending_order";
 
 export default function RegistrationSuccessPage() {
   const { clubSlug } = useParams();
@@ -116,13 +104,13 @@ export default function RegistrationSuccessPage() {
     try {
       clear();
     } catch {
-      // ignore cart clear failure
+      // ignore
     }
 
     try {
       sessionStorage.removeItem(CHECKOUT_PENDING_STORAGE_KEY);
     } catch {
-      // ignore storage failure
+      // ignore
     }
   }, [order, clear]);
 
@@ -186,10 +174,10 @@ export default function RegistrationSuccessPage() {
 
                 <div className="rounded-2xl bg-zinc-50 p-4">
                   <div className="text-xs uppercase tracking-wide text-zinc-500">
-                    Netfang
+                    Staða
                   </div>
                   <div className="mt-1 font-semibold text-zinc-900">
-                    {order.buyer_email || "Óþekkt"}
+                    {order.processing_status || "PENDING"}
                   </div>
                 </div>
 
@@ -209,35 +197,29 @@ export default function RegistrationSuccessPage() {
                     Vörur og skráningar
                   </div>
 
-                  {!items.length ? (
-                    <div className="mt-4 text-sm text-zinc-500">
-                      Engar línur fundust í pöntun.
-                    </div>
-                  ) : (
-                    <div className="mt-4 space-y-3">
-                      {items.map((item, index) => (
-                        <div
-                          key={item.cartId || `${item.productId || "item"}-${index}`}
-                          className="rounded-2xl bg-zinc-50 p-4"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div>
-                              <div className="text-sm font-semibold text-zinc-900">
-                                {item.name || "Ónefnd vara"}
-                              </div>
-                              <div className="mt-1 text-xs uppercase tracking-wide text-zinc-500">
-                                {item.type || "ITEM"}
-                              </div>
+                  <div className="mt-4 space-y-3">
+                    {items.map((item, index) => (
+                      <div
+                        key={item.cartId || `${item.productId || "item"}-${index}`}
+                        className="rounded-2xl bg-zinc-50 p-4"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="text-sm font-semibold text-zinc-900">
+                              {item.name || "Ónefnd vara"}
                             </div>
-
-                            <div className="shrink-0 text-sm font-semibold text-zinc-900">
-                              {formatISK(item.price)}
+                            <div className="mt-1 text-xs uppercase tracking-wide text-zinc-500">
+                              {item.type || "ITEM"}
                             </div>
                           </div>
+
+                          <div className="shrink-0 text-sm font-semibold text-zinc-900">
+                            {formatISK(item.price)}
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    ))}
+                  </div>
                 </section>
 
                 <section className="rounded-2xl border p-5">
@@ -245,56 +227,40 @@ export default function RegistrationSuccessPage() {
                     Iðkendur
                   </div>
 
-                  {!registrations.length ? (
-                    <div className="mt-4 text-sm text-zinc-500">
-                      Engar registration upplýsingar fundust.
-                    </div>
-                  ) : (
-                    <div className="mt-4 space-y-3">
-                      {registrations.map((reg) => (
-                        <div key={reg.id} className="rounded-2xl bg-zinc-50 p-4">
-                          <div className="text-sm font-semibold text-zinc-900">
-                            {reg.athleteName}
-                          </div>
-
-                          <div className="mt-1 text-sm text-zinc-600">
-                            {reg.productName}
-                          </div>
-
-                          {reg.athleteDob ? (
-                            <div className="mt-2 text-xs text-zinc-500">
-                              Fæðingardagur: {reg.athleteDob}
-                            </div>
-                          ) : null}
-
-                          {reg.guardianName ? (
-                            <div className="mt-1 text-xs text-zinc-500">
-                              Forráðamaður: {reg.guardianName}
-                            </div>
-                          ) : null}
-
-                          {reg.notes ? (
-                            <div className="mt-1 text-xs text-zinc-500">
-                              Athugasemdir: {reg.notes}
-                            </div>
-                          ) : null}
-
-                          {reg.kennitala ? (
-                            <div className="mt-1 text-xs text-zinc-500">
-                              Kennitala: {reg.kennitala}
-                            </div>
-                          ) : null}
+                  <div className="mt-4 space-y-3">
+                    {registrations.map((reg) => (
+                      <div key={reg.id} className="rounded-2xl bg-zinc-50 p-4">
+                        <div className="text-sm font-semibold text-zinc-900">
+                          {reg.athleteName}
                         </div>
-                      ))}
-                    </div>
-                  )}
+
+                        <div className="mt-1 text-sm text-zinc-600">
+                          {reg.productName}
+                        </div>
+
+                        {reg.athleteDob ? (
+                          <div className="mt-2 text-xs text-zinc-500">
+                            Fæðingardagur: {reg.athleteDob}
+                          </div>
+                        ) : null}
+
+                        {reg.guardianName ? (
+                          <div className="mt-1 text-xs text-zinc-500">
+                            Forráðamaður: {reg.guardianName}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
                 </section>
               </div>
 
               <div className="mt-8 rounded-2xl border bg-green-50 p-4 text-sm text-green-800">
-                {isOrderReady(order)
-                  ? "Greiðsla hefur verið staðfest, karfan hefur verið tæmd og skráning er komin í vinnslu eða fullkláruð í kerfinu."
-                  : "Greiðslan virðist hafa farið í gegn, en kerfið er enn að klára síðustu skrefin."}
+                {order.is_fulfilled
+                  ? "Skráning hefur verið fullkláruð í kerfinu."
+                  : order.is_paid
+                  ? "Greiðsla hefur verið staðfest og skráning er komin í vinnslu."
+                  : "Kerfið bíður enn eftir staðfestingu frá greiðslugátt."}
               </div>
             </>
           ) : null}

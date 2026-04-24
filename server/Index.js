@@ -135,6 +135,9 @@ function getAppBaseUrl(req) {
     return FRONTEND_URL;
   }
 
+  return "http://localhost:5173";
+}
+
   const originHeader = normalizeUrlBase(req.get("origin"));
   if (originHeader) return originHeader;
 

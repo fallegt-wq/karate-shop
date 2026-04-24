@@ -718,7 +718,7 @@ app.post("/api/clubs/:clubSlug/checkout/stripe", async (req, res) => {
             product_data: {
               name: buyerName ? `Skráning - ${buyerName}` : "Skráning",
             },
-            unit_amount: Math.round(totalAmount * 100),
+         unit_amount: Math.round(totalAmount),
           },
           quantity: 1,
         },

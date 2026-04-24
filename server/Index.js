@@ -135,8 +135,6 @@ function getAppBaseUrl(req) {
 }
 
   const originHeader = normalizeUrlBase(req.get("origin"));
-  if (originHeader) return originHeader;
-
   const forwardedProto = normalizeUrlBase(req.get("x-forwarded-proto"));
   const forwardedHost = normalizeUrlBase(req.get("x-forwarded-host"));
   const host = normalizeUrlBase(req.get("host"));

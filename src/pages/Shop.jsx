@@ -119,7 +119,7 @@ export default function Shop() {
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("All");
   const [brand, setBrand] = useState("All");
-  const [maxPrice, setMaxPrice] = useState(300);
+const [maxPrice, setMaxPrice] = useState(50000);
 
   // Session
   const [me, setMe] = useState(null);
@@ -331,16 +331,16 @@ export default function Shop() {
               </select>
 
               <div>
-                <input
-                  type="range"
-                  min={10}
-                  max={300}
+            <input
+  type="range"
+  min={0}
+  max={50000}
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(Number(e.target.value))}
                   className="w-full"
                 />
                 <div className="text-sm text-gray-600 mt-1">
-                  Up to <span className="font-semibold">${maxPrice}</span>
+                  Up to <span className="font-semibold">{maxPrice.toLocaleString("is-IS")} kr.</span>
                 </div>
               </div>
 

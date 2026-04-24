@@ -1201,18 +1201,13 @@ app.post("/api/clubs/:clubSlug/club/messages/groups/:groupId/messages", requireS
 
 if (fs.existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath));
+app.use(express.static(clientDistPath));
 
-  app.get(/^\/(?!api\/).*/, (req, res) => {
-    return res.sendFile(clientIndexPath);
-  });
-}
-if (fs.existsSync(clientDistPath)) {
-  app.use(express.static(clientDistPath));
+app.get(/^\/(?!api\/).*/, (req, res) => {
+  return res.sendFile(clientIndexPath);
+});
 
-  app.get(/^\/(?!api\/).*/, (req, res) => {
-    return res.sendFile(clientIndexPath);
-  });
-}
 app.listen(PORT, () => {
   console.log(`API listening on http://localhost:${PORT}`);
 });
+ 

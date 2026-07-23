@@ -149,6 +149,7 @@ function EmptyState({ title, body, action }) {
 function OrderRow({ order, onSelect }) {
   const grant = getOrderGrant(order);
   const registrations = getOrderRegistrations(order);
+  const delivery = getOrderDelivery(order);
 
   return (
     <button
@@ -192,6 +193,11 @@ function OrderRow({ order, onSelect }) {
                 {registrations.length === 1 ? "" : "ar"}
               </span>
             ) : null}
+            {delivery?.method === "SHIP" ? (
+              <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-800">
+                Heimsending
+              </span>
+            ) : null}
           </div>
 
           <div className="mt-2 text-sm text-gray-500">
@@ -216,10 +222,14 @@ function OrderRow({ order, onSelect }) {
 }
 
 function DetailRow({ label, value }) {
+  const displayValue = value === null || value === undefined || value === "" ? "—" : value;
+
   return (
-    <div className="grid grid-cols-1 gap-1 border-b py-3 md:grid-cols-[180px_minmax(0,1fr)] md:gap-4">
+    <div className="grid grid-cols-1 gap-1 border-b py-3 md:grid-cols-[180px_minmax(0,1fr)] md:gap-4 last:border-b-0">
       <div className="text-sm font-medium text-gray-500">{label}</div>
-      <div className="min-w-0 text-sm text-zinc-900">{value || "—"}</div>
+      <div className="min-w-0 break-words text-sm text-zinc-900">
+        {displayValue}
+      </div>
     </div>
   );
 }
@@ -246,7 +256,7 @@ function OrderDetails({
             Pöntun #{order.id}
           </div>
           <div className="mt-1 text-sm text-gray-500">
-            Detail view fyrir næstu admin skref
+            Nánari upplýsingar um pöntun
           </div>
         </div>
 
@@ -401,27 +411,30 @@ function OrderDetails({
     <button
       type="button"
       onClick={onMarkPaid}
-      disabled={actionLoading.paid || order.status === "PAID"}
+      disabled={actionLoading.paid || normalizeStatus(order.status) === "PAID"}
       className="w-full rounded-xl bg-green-600 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
     >     
         {actionLoading.paid
-                ? "Updating..."
-                : order.status === "PAID"
-                ? "Already PAID"
-                : "Mark as PAID"}
+                ? "Uppfæri..."
+                : normalizeStatus(order.status) === "PAID"
+                ? "Þegar merkt greitt"
+                : "Merkja sem greitt"}
             </button>
 
             <button
               type="button"
               onClick={onCancelOrder}
-              disabled={actionLoading.cancelled || order.status === "CANCELLED"}
+              disabled={
+                actionLoading.cancelled ||
+                normalizeStatus(order.status) === "CANCELLED"
+              }
               className="w-full rounded-xl bg-red-600 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {actionLoading.cancelled
-                ? "Updating..."
-                : order.status === "CANCELLED"
-                ? "Already CANCELLED"
-                : "Mark as CANCELLED"}
+                ? "Uppfæri..."
+                : normalizeStatus(order.status) === "CANCELLED"
+                ? "Þegar hætt við"
+                : "Hætta við pöntun"}
             </button>
           </div>
 
@@ -439,8 +452,8 @@ function OrderDetails({
         <div className="mt-4 rounded-2xl border border-dashed bg-gray-50 p-4">
           <div className="text-sm font-semibold text-zinc-900">Næsta skref</div>
           <div className="mt-1 text-sm text-gray-600">
-            Hér getum við næst bætt inn payment state, order lines og fullu
-            detail workflow fyrir afgreiðslu.
+            Næst má bæta við greiðsluupplýsingum, vörulínum og fullu
+            afgreiðsluferli.
           </div>
         </div>
       </div>
@@ -468,6 +481,11 @@ export default function AdminOrders() {
         credentials: "include",
       });
       const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || data?.error || "Ekki tókst að sækja pantanir.");
+      }
+
       const rows = Array.isArray(data?.orders) ? data.orders : [];
 
       setOrders(rows);
@@ -493,6 +511,11 @@ export default function AdminOrders() {
         if (!alive) return;
 
         const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data?.message || data?.error || "Ekki tókst að sækja pantanir.");
+        }
+
         const rows = Array.isArray(data?.orders) ? data.orders : [];
 
         setOrders(rows);
@@ -557,11 +580,15 @@ export default function AdminOrders() {
         }
       );
 
-      if (!res.ok) {
-        throw new Error("Failed to update order status");
-      }
-
       const updatedOrder = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          updatedOrder?.message ||
+            updatedOrder?.error ||
+            "Ekki tókst að uppfæra stöðu pöntunar."
+        );
+      }
       updateOrderInState(updatedOrder);
     } catch (error) {
       console.error("Order status update failed", error);
@@ -652,8 +679,8 @@ export default function AdminOrders() {
               Pantanir fyrir {clubSlug}
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-gray-600">
-              Hér getur staff séð allar pantanir fyrir klúbbinn, leitað í þeim og
-              skoðað detail upplýsingar í sama stíl og admin dashboardið.
+              Hér getur starfsfólk séð allar pantanir félagsins, leitað í þeim
+              og skoðað nánari upplýsingar.
             </p>
           </div>
 
@@ -762,7 +789,7 @@ export default function AdminOrders() {
         </SectionCard>
 
         <SectionCard
-          title="Pöntunardetails"
+          title="Pöntunarupplýsingar"
           action={
             selectedOrder ? (
               <span className="text-sm text-gray-500">

@@ -45,6 +45,11 @@ function getOrderRegistrations(order) {
   return Array.isArray(registrations) ? registrations : [];
 }
 
+function getOrderDelivery(order) {
+  const delivery = getOrderBody(order)?.delivery;
+  return delivery && typeof delivery === "object" ? delivery : null;
+}
+
 function getOrderSummary(order) {
   const body = getOrderBody(order);
   const items = Array.isArray(body.items) ? body.items : [];

@@ -236,6 +236,7 @@ function OrderDetails({
 
   const grant = getOrderGrant(order);
   const registrations = getOrderRegistrations(order);
+  const delivery = getOrderDelivery(order);
 
   return (
     <div className="rounded-2xl border bg-white shadow-sm">
@@ -294,72 +295,103 @@ function OrderDetails({
           <DetailRow label="Lýsing" value={getOrderSummary(order)} />
         </div>
 
-        <div className="mt-4 rounded-2xl border border-dashed bg-gray-50 p-4">
-          <div className="text-sm font-semibold text-zinc-900">Frístundastyrkur</div>
-          <div className="mt-3 rounded-xl border bg-white px-4">
-            <DetailRow
-              label="Óskað eftir styrk"
-              value={grant?.requested ? "Já" : "Nei"}
-            />
-            <DetailRow label="Sveitarfélag" value={grant?.municipality} />
-            <DetailRow
-              label="Umsótt upphæð"
-              value={
-                grant?.requested
-                  ? formatAmount(grant?.requestedAmount ?? grant?.appliedAmount ?? 0)
-                  : "—"
-              }
-            />
-            <DetailRow
-              label="Hámarksgrunnur"
-              value={
-                grant?.eligibleSubtotal != null
-                  ? formatAmount(grant.eligibleSubtotal)
-                  : "—"
-              }
-            />
-            <DetailRow label="Staða styrks" value={grant?.status} />
-            <DetailRow label="Athugasemd" value={grant?.note} />
+       <div className="mt-4 rounded-2xl border border-dashed bg-gray-50 p-4">
+  <div className="text-sm font-semibold text-zinc-900">Frístundastyrkur</div>
+  <div className="mt-3 rounded-xl border bg-white px-4">
+    <DetailRow
+      label="Óskað eftir styrk"
+      value={grant?.requested ? "Já" : "Nei"}
+    />
+    <DetailRow label="Sveitarfélag" value={grant?.municipality} />
+    <DetailRow
+      label="Umsótt upphæð"
+      value={
+        grant?.requested
+          ? formatAmount(grant?.requestedAmount ?? grant?.appliedAmount ?? 0)
+          : "—"
+      }
+    />
+    <DetailRow
+      label="Hámarksgrunnur"
+      value={
+        grant?.eligibleSubtotal != null
+          ? formatAmount(grant.eligibleSubtotal)
+          : "—"
+      }
+    />
+    <DetailRow label="Staða styrks" value={grant?.status} />
+    <DetailRow label="Athugasemd" value={grant?.note} />
+  </div>
+</div>
+
+<div className="mt-4 rounded-2xl border border-dashed bg-gray-50 p-4">
+  <div className="text-sm font-semibold text-zinc-900">Afhending</div>
+
+  <div className="mt-3 rounded-xl border bg-white px-4">
+    <DetailRow
+      label="Afhending"
+      value={
+        delivery?.method === "SHIP"
+          ? "Fá sent heim"
+          : "Sótt hjá félagi"
+      }
+    />
+
+    {delivery?.method === "SHIP" ? (
+      <>
+        <DetailRow
+          label="Heimilisfang"
+          value={delivery?.address?.street}
+        />
+        <DetailRow
+          label="Póstnúmer"
+          value={delivery?.address?.postalCode}
+        />
+        <DetailRow
+          label="Bær"
+          value={delivery?.address?.city}
+        />
+        <DetailRow
+          label="Athugasemd"
+          value={delivery?.address?.note}
+        />
+      </>
+    ) : (
+      <DetailRow
+        label="Upplýsingar"
+        value="Viðskiptavinur sækir vöruna hjá félaginu."
+      />
+    )}
+  </div>
+</div>
+
+<div className="mt-4 rounded-2xl border border-dashed bg-gray-50 p-4">
+  <div className="text-sm font-semibold text-zinc-900">Skráningar / iðkendur</div>
+  {registrations.length === 0 ? (
+    <div className="mt-3 text-sm text-gray-600">
+      Engar skráningar eða iðkendaupplýsingar fylgdu þessari pöntun.
+    </div>
+  ) : (
+    <div className="mt-3 space-y-3">
+      {registrations.map((registration, index) => (
+        <div
+          key={`${registration?.productId || registration?.sku || "registration"}-${index}`}
+          className="rounded-xl border bg-white p-4"
+        >
+          <div className="text-sm font-semibold text-zinc-900">
+            {registration?.productName || registration?.name || `Skráning ${index + 1}`}
+          </div>
+          <div className="mt-2 grid gap-2 text-sm text-gray-600 md:grid-cols-2">
+            <div>Nafn iðkanda: {registration?.athleteName || "—"}</div>
+            <div>Fæðingardagur: {registration?.athleteDob || "—"}</div>
+            <div>Forráðamaður: {registration?.guardianName || "—"}</div>
+            <div>Tegund: {registration?.type || "—"}</div>
           </div>
         </div>
-
-        <div className="mt-4 rounded-2xl border border-dashed bg-gray-50 p-4">
-          <div className="text-sm font-semibold text-zinc-900">Skráningar / iðkendur</div>
-          {registrations.length === 0 ? (
-            <div className="mt-3 text-sm text-gray-600">
-              Engar skráningar eða iðkendaupplýsingar fylgdu þessari pöntun.
-            </div>
-          ) : (
-            <div className="mt-3 space-y-3">
-              {registrations.map((registration, index) => (
-                <div
-                  key={`${registration?.productId || registration?.sku || "registration"}-${index}`}
-                  className="rounded-xl border bg-white p-4"
-                >
-                  <div className="text-sm font-semibold text-zinc-900">
-                    {registration?.productName || registration?.name || `Skráning ${index + 1}`}
-                  </div>
-                  <div className="mt-2 grid gap-2 text-sm text-gray-600 md:grid-cols-2">
-                    <div>Nafn iðkanda: {registration?.athleteName || "—"}</div>
-                    <div>Fæðingardagur: {registration?.athleteDob || "—"}</div>
-                    <div>Forráðamaður: {registration?.guardianName || "—"}</div>
-                    <div>Tegund: {registration?.type || "—"}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-dashed bg-gray-50 p-4">
-          <div className="text-sm font-semibold text-zinc-900">Aðgerðir</div>
-          <div className="space-y-2 border-t pt-4">
-            <button
-              type="button"
-              onClick={onMarkPaid}
-              disabled={actionLoading.paid || order.status === "PAID"}
-              className="w-full rounded-xl bg-green-600 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
+      ))}
+    </div>
+  )}
+</div>
               {actionLoading.paid
                 ? "Updating..."
                 : order.status === "PAID"

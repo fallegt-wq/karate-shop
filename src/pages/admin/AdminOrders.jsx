@@ -392,7 +392,19 @@ function OrderDetails({
     </div>
   )}
 </div>
-              {actionLoading.paid
+        <div className="mt-4 rounded-2xl border border-dashed bg-gray-50 p-4">
+  <div className="text-sm font-semibold text-zinc-900">
+    Uppfæra stöðu
+  </div>
+
+  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+    <button
+      type="button"
+      onClick={onMarkPaid}
+      disabled={actionLoading.paid || order.status === "PAID"}
+      className="w-full rounded-xl bg-green-600 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+    >     
+        {actionLoading.paid
                 ? "Updating..."
                 : order.status === "PAID"
                 ? "Already PAID"
